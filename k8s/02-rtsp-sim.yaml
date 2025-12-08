@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtsp-sim
+  labels:
+    app: rtsp-sim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rtsp-sim
+  template:
+    metadata:
+      labels:
+        app: rtsp-sim
+    spec:
+      volumes:
+      - name: videos-volume
+        hostPath:
+          path: /home/hanta/workspace/jungg/safety-hanta/videos
+          type: Directory
+      containers:
+      - name: mediamtx
+        image: bluenviron/mediamtx:latest
+        ports:
+        - containerPort: 8554
+          name: rtsp
+      - name: simulator
+        image: linuxserver/ffmpeg:latest
+        volumeMounts:
+        - name: videos-volume
+          mountPath: /videos
+        command: ["/bin/bash", "-c"]
+        # Publish 10 streams (cam0 to cam9) from the sample video
+        # Using & to run in background.
+        args:
+        - >-
+          for i in {0..9}; do
+            ffmpeg -re -stream_loop -1 -i /videos/accident_video-01.mp4 -c copy -f rtsp rtsp://localhost:8554/cam$i &
+          done;
+          wait
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mediamtx-service
+spec:
+  selector:
+    app: rtsp-sim
+  ports:
+  - name: rtsp
+    port: 8554
+    targetPort: 8554

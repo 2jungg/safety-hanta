@@ -248,3 +248,6 @@ onelogger.log
 
 # Core dumps
 core.*
+
+# Generated reports
+/reports/

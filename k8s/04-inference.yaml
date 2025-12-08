@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  labels:
+    app: inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+    spec:
+      # Node Affinity for DGX / GPU nodes
+      nodeSelector:
+        accelerator: nvidia-gpu
+      # Tolerations if the node is tainted
+      queryset:
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      volumes:
+      - name: model-volume
+        hostPath:
+          path: /home/hanta/workspace/jungg/safety-hanta/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+          type: Directory
+      containers:
+      - name: inference
+        image: cosmos-reason1-server:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "-u", "src/inference/main.py"]
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+        volumeMounts:
+        - name: model-volume
+          mountPath: /app/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: MODEL_PATH
+          value: "/app/saved_models_Cosmos-Reason1-7B_nvfp4_hf"

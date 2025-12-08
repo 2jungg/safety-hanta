@@ -1,0 +1,56 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# Docker
+Dockerfile
+Dockerfile.quantize
+Dockerfile copy
+
+# Kubernetes
+k8s
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+ruff.toml
+.link-check.json
+.pre-commit-config.yaml
+.pre-commit-config-base.yaml
+
+# Project specific
+saved_models_Cosmos-Reason1-7B_nvfp4_hf
+videos
+reports
+sparse_logs
+output
+scripts/analyze_videos_batch.py
+scripts/*.py
+run.sh
+run_nvfp4.sh
+hf_ptq.py
+examples
+assets
+bin
+docs
+LICENSE
+README.md
+ATTRIBUTIONS.md
+CONTRIBUTING.md
+REMEMBER.md
+instruction.md
+justfile
+uv.lock
+pyproject.toml

@@ -1,0 +1,59 @@
+# Use the official NVIDIA Triton container with a working vllm backend
+FROM nvcr.io/nvidia/tritonserver:25.11-vllm-python-py3
+
+# Set environment variables for non-interactive installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+# Install build dependencies for vllm and torchcodec
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git \
+    cmake \
+    pkg-config \
+    pybind11-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libavdevice-dev \
+    libavfilter-dev \
+    libgl1-mesa-glx \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install uv for package management
+RUN pip install --break-system-packages uv
+
+# Create a working directory
+WORKDIR /app
+
+# Copy the entire project into the container
+COPY . .
+
+# Step 1: Install base PyPI dependencies (torch is already in the base image)
+RUN uv pip install --break-system-packages \
+  --system \
+  "accelerate>=1.10.1" \
+  "pyyaml>=6.0.2" \
+  "qwen-vl-utils>=0.0.14" \
+  "rich" \
+  "transformers>=4.57.0" \
+  "redis" \
+  "opencv-python"
+
+# Step 2: Build and install torchcodec from source for aarch64 compatibility
+# (Kept from original, assuming it's needed/useful)
+RUN git clone https://github.com/pytorch/torchcodec.git && \
+    cd torchcodec && \
+    I_CONFIRM_THIS_IS_NOT_A_LICENSE_VIOLATION=1 pip install --break-system-packages --no-build-isolation .
+
+# Step 3: Install the local editable package
+RUN uv pip install --break-system-packages --system -e ./cosmos_reason1_utils
+
+# Step 4: Patch vLLM Qwen2.5 VL model
+# Location based on run_nvfp4.sh which used python3.12
+COPY qwen2_5_vl.py /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2_5_vl.py
+
+# Set the default command (can be overridden by K8s)
+CMD [ "python3", "scripts/analyze_videos_batch.py" ]
