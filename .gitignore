@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -58,6 +59,11 @@ credentials
 # Byte-compiled / optimized / DLL files
 **/__pycache__/
 *.py[cod]
+=======
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 *$py.class
 
 # C extensions
@@ -74,13 +80,20 @@ eggs/
 lib/
 lib64/
 parts/
+<<<<<<< HEAD
 results/
+=======
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 sdist/
 var/
 wheels/
 share/python-wheels/
 *.egg-info/
+<<<<<<< HEAD
 .installed.config
+=======
+.installed.cfg
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 *.egg
 MANIFEST
 
@@ -104,7 +117,11 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+<<<<<<< HEAD
 *.py,cover
+=======
+*.py.cover
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 .hypothesis/
 .pytest_cache/
 cover/
@@ -133,7 +150,10 @@ docs/_build/
 .pybuilder/
 target/
 
+<<<<<<< HEAD
 # Third party
+=======
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -159,6 +179,7 @@ ipython_config.py
 #   commonly ignored for libraries.
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
 #poetry.lock
+<<<<<<< HEAD
 
 # pdm
 #   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
@@ -167,6 +188,25 @@ ipython_config.py
 #   in version control.
 #   https://pdm.fming.dev/#use-with-ide
 .pdm.toml
+=======
+#poetry.toml
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#   pdm recommends including project-wide configuration in pdm.toml, but excluding .pdm-python.
+#   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
+#pdm.lock
+#pdm.toml
+.pdm-python
+.pdm-build/
+
+# pixi
+#   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
+#pixi.lock
+#   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
+#   in the .venv directory. It is recommended not to include this directory in version control.
+.pixi
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
@@ -180,6 +220,10 @@ celerybeat.pid
 
 # Environments
 .env
+<<<<<<< HEAD
+=======
+.envrc
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 .venv
 env/
 venv/
@@ -211,15 +255,19 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+<<<<<<< HEAD
 # ruff
 .ruff_cache
 
+=======
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+<<<<<<< HEAD
 CLIP
 .devcontainer/devcontainer.json
 
@@ -253,3 +301,36 @@ core.*
 /reports/
 
 /saved_models_Cosmos-Reason1-7B_nvfp4_hf
+=======
+
+# Abstra
+# Abstra is an AI-powered process automation framework.
+# Ignore directories containing user credentials, local state, and settings.
+# Learn more at https://abstra.io/docs
+.abstra/
+
+# Visual Studio Code
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
+#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  you could uncomment the following to ignore the entire vscode folder
+# .vscode/
+
+# Ruff stuff:
+.ruff_cache/
+
+# PyPI configuration file
+.pypirc
+
+# Cursor
+#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
+#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
+#  refer to https://docs.cursor.com/context/ignore-files
+.cursorignore
+.cursorindexingignore
+
+# Marimo
+marimo/_static/
+marimo/_lsp/
+__marimo__/
+>>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
