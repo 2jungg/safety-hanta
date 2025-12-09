@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Distributed Video Analytics Pipeline
 
 This repository implements a **scalable video analytics pipeline** built on NVIDIA **Cosmos‑Reason1** vision‑language model. The system captures RTSP streams, buffers 5‑second video chunks, pushes them to Redis, and runs inference on a DGX node.
@@ -33,7 +32,3 @@ The pipeline will automatically process the videos placed in `videos/` and gener
 
 ## License
 Apache‑2.0. See `LICENSE` for details.
-=======
-# safety-hanta
-VLM기반 산업 안전 관리 솔루션
->>>>>>> ead96316d32031f3c069e358b5e56198fea88b79
