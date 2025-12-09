@@ -1,0 +1,46 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# Register NVIDIA runtime for GPU pods
+containerdConfigPatches:
+- |-
+    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
+      runtime_type = "io.containerd.runc.v2"
+    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
+      BinaryName = "/usr/bin/nvidia-container-runtime"
+
+nodes:
+  - role: control-plane
+
+  # Capture workers (2 nodes) – each will run 5 streamer pods (total 10)
+  - role: worker
+    extraMounts:
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
+        containerPath: /videos   # ← added
+    # No runtimeClassName here – default (CPU only)
+
+  - role: worker
+    extraMounts:
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
+        containerPath: /videos   # ← added
+
+  # Inference worker (GPU node)
+  - role: worker
+    extraMounts:
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
+        containerPath: /videos   # ← added (optional, not required for inference)
+    # GPU runtime will be selected by pods via runtimeClassName=nvidia
+
+  # Generic worker (can host Redis, RTSP‑sim, etc.)
+  - role: worker
+    extraMounts:
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
+        containerPath: /videos   # ← added

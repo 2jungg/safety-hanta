@@ -18,7 +18,6 @@ RUN apt-get update && \
     libswscale-dev \
     libavdevice-dev \
     libavfilter-dev \
-    libgl1-mesa-glx \
     && \
     rm -rf /var/lib/apt/lists/*
 
