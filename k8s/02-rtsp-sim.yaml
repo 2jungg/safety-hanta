@@ -14,29 +14,51 @@ spec:
       labels:
         app: rtsp-sim
     spec:
+      nodeSelector:
+        role: simulation
+      initContainers:
+      - name: sysctl-config
+        image: busybox
+        securityContext:
+          privileged: true
+        command: ['sh', '-c', 'sysctl -w fs.file-max=1000000; ulimit -n 65536']
       volumes:
       - name: videos-volume
         hostPath:
-          path: /home/hanta/workspace/jungg/safety-hanta/videos
+          path: /videos
           type: Directory
       containers:
       - name: mediamtx
-        image: bluenviron/mediamtx:latest
+        securityContext:
+          privileged: true
+        image: bluenviron/mediamtx:latest-ffmpeg
+        command: ["/bin/sh", "-c", "ulimit -n 65536 && /mediamtx"]
         ports:
         - containerPort: 8554
           name: rtsp
+        env:
+        - name: MTX_RTMP
+          value: "no"
+        - name: MTX_HLS
+          value: "no"
+        - name: MTX_WEBRTC
+          value: "no"
+        - name: MTX_SRT
+          value: "no"
       - name: simulator
         image: linuxserver/ffmpeg:latest
         volumeMounts:
         - name: videos-volume
           mountPath: /videos
         command: ["/bin/bash", "-c"]
-        # Publish 10 streams (cam0 to cam9) from the sample video
+        # Publish 10 streams (cam1 to cam10) from the sample videos
         # Using & to run in background.
         args:
         - >-
-          for i in {0..9}; do
-            ffmpeg -re -stream_loop -1 -i /videos/accident_video-01.mp4 -c copy -f rtsp rtsp://localhost:8554/cam$i &
+          sleep 10;
+          for i in {1..10}; do
+            VIDEO_NUM=$(printf "%02d" $i);
+            ffmpeg -re -stream_loop -1 -i /videos/accident_video-$VIDEO_NUM.mp4 -c copy -f rtsp rtsp://localhost:8554/cam$i &
           done;
           wait
 ---

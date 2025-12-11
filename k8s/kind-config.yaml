@@ -12,35 +12,50 @@ containerdConfigPatches:
 nodes:
   - role: control-plane
 
-  # Capture workers (2 nodes) – each will run 5 streamer pods (total 10)
+  # Capture workers
   - role: worker
+    labels:
+      role: capture
     extraMounts:
       - hostPath: /dev
         containerPath: /dev
-      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
-        containerPath: /videos   # ← added
+      - hostPath: /home/jungg/workspace/safety-hanta/videos
+        containerPath: /videos
     # No runtimeClassName here – default (CPU only)
-
-  - role: worker
-    extraMounts:
-      - hostPath: /dev
-        containerPath: /dev
-      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
-        containerPath: /videos   # ← added
 
   # Inference worker (GPU node)
   - role: worker
+    labels:
+      role: inference
+      accelerator: nvidia-gpu
     extraMounts:
       - hostPath: /dev
         containerPath: /dev
-      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
-        containerPath: /videos   # ← added (optional, not required for inference)
+      - hostPath: /home/jungg/workspace/safety-hanta/videos
+        containerPath: /videos
+      - hostPath: /home/jungg/workspace/safety-hanta/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+        containerPath: /models
+      # Inject NVIDIA drivers and tools from host
+      - hostPath: /usr/bin/nvidia-container-runtime
+        containerPath: /usr/bin/nvidia-container-runtime
+        readOnly: true
+      - hostPath: /usr/bin/nvidia-smi
+        containerPath: /usr/bin/nvidia-smi
+        readOnly: true
+      - hostPath: /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1
+        containerPath: /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1
+        readOnly: true
+      - hostPath: /usr/lib/aarch64-linux-gnu/libcuda.so.1
+        containerPath: /usr/lib/aarch64-linux-gnu/libcuda.so.1
+        readOnly: true
     # GPU runtime will be selected by pods via runtimeClassName=nvidia
 
   # Generic worker (can host Redis, RTSP‑sim, etc.)
   - role: worker
+    labels:
+      role: simulation
     extraMounts:
       - hostPath: /dev
         containerPath: /dev
-      - hostPath: /home/hanta/workspace/jungg/safety-hanta/videos
-        containerPath: /videos   # ← added
+      - hostPath: /home/jungg/workspace/safety-hanta/videos
+        containerPath: /videos

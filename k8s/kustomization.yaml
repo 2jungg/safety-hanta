@@ -4,6 +4,8 @@ kind: Kustomization
 resources:
   - 01-redis.yaml
   - 02-rtsp-sim.yaml
-  - capture-worker-1-deployment.yaml
-  - capture-worker-2-deployment.yaml
+  - 03-capture-worker-deployment.yaml
   - 04-inference.yaml
+  - nvidia-runtime-class.yaml
+  - nvidia-device-plugin.yaml
+  - sysctl-fix.yaml

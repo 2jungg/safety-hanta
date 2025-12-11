@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sysctl-fix
+  namespace: kube-system
+  labels:
+    app: sysctl-fix
+spec:
+  selector:
+    matchLabels:
+      app: sysctl-fix
+  template:
+    metadata:
+      labels:
+        app: sysctl-fix
+    spec:
+      hostPID: true
+      hostNetwork: true
+      initContainers:
+      - name: sysctl-tune
+        image: busybox
+        securityContext:
+          privileged: true
+        command:
+        - sh
+        - -c
+        - |
+          sysctl -w fs.inotify.max_user_watches=524288
+          sysctl -w fs.inotify.max_user_instances=8192
+          sysctl -w fs.file-max=1000000
+      containers:
+      - name: pause
+        image: k8s.gcr.io/pause:3.1

@@ -16,4 +16,4 @@ COPY . .
 RUN pip install --no-cache-dir redis opencv-python
 
 # Set the default command for the streamer service
-CMD ["python3", "-u", "src/streamer/main.py"]
+CMD ["python", "-u", "src/capture/main.py"]

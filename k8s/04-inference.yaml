@@ -14,35 +14,50 @@ spec:
       labels:
         app: inference
     spec:
-      # Node Affinity for DGX / GPU nodes
       nodeSelector:
-        accelerator: nvidia-gpu
-      # Tolerations if the node is tainted
-      queryset:
-      tolerations:
-      - key: "nvidia.com/gpu"
-        operator: "Exists"
-        effect: "NoSchedule"
+        role: inference
       volumes:
       - name: model-volume
         hostPath:
-          path: /home/hanta/workspace/jungg/safety-hanta/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+          path: /models
           type: Directory
       containers:
       - name: inference
         image: cosmos-reason1-server:latest
         imagePullPolicy: IfNotPresent
-        command: ["python3", "-u", "src/inference/main.py"]
         resources:
           limits:
             nvidia.com/gpu: 1
-        volumeMounts:
-        - name: model-volume
-          mountPath: /app/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+        command: ["python3", "-u", "src/inference/main.py"]
         env:
+        - name: MODEL_PATH
+          value: "/app/saved_models_Cosmos-Reason1-7B_nvfp4_hf"
+        - name: LD_LIBRARY_PATH
+          value: "/usr/lib/aarch64-linux-gnu:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
         - name: REDIS_HOST
           value: "redis-service"
         - name: REDIS_PORT
           value: "6379"
-        - name: MODEL_PATH
-          value: "/app/saved_models_Cosmos-Reason1-7B_nvfp4_hf"
+        volumeMounts:
+        - name: model-volume
+          mountPath: /app/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+        - name: nvidia-smi
+          mountPath: /usr/bin/nvidia-smi
+        - name: libnvidia-ml
+          mountPath: /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1
+        - name: libcuda
+          mountPath: /usr/lib/aarch64-linux-gnu/libcuda.so.1
+      volumes:
+      - name: model-volume
+        hostPath:
+          path: /models
+          type: Directory
+      - name: nvidia-smi
+        hostPath:
+          path: /usr/bin/nvidia-smi
+      - name: libnvidia-ml
+        hostPath:
+          path: /usr/lib/aarch64-linux-gnu/libnvidia-ml.so.1
+      - name: libcuda
+        hostPath:
+          path: /usr/lib/aarch64-linux-gnu/libcuda.so.1

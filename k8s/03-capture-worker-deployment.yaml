@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: capture-worker-1
+  name: capture-worker
 spec:
-  replicas: 5
+  replicas: 10
   selector:
     matchLabels:
       app: capture
@@ -15,19 +15,19 @@ spec:
         worker: "1"
     spec:
       nodeSelector:
-        role: capture1
+        role: capture
       containers:
-        - name: streamer
-          image: video-streamer:latest
+        - name: capture
+          image: video-capture:latest
           imagePullPolicy: IfNotPresent
-          command: ["python3", "-u", "src/streamer/main.py"]
+          command: ["python3", "-u", "src/capture/main.py"]
           env:
             - name: REDIS_HOST
               value: "redis-service"
             - name: REDIS_PORT
               value: "6379"
             - name: RTSP_URLS
-              value: "rtsp://mediamtx-service:8554/cam0,rtsp://mediamtx-service:8554/cam1,rtsp://mediamtx-service:8554/cam2,rtsp://mediamtx-service:8554/cam3,rtsp://mediamtx-service:8554/cam4"
+              value: "rtsp://mediamtx-service:8554/cam1,rtsp://mediamtx-service:8554/cam2,rtsp://mediamtx-service:8554/cam3,rtsp://mediamtx-service:8554/cam4,rtsp://mediamtx-service:8554/cam5,rtsp://mediamtx-service:8554/cam6,rtsp://mediamtx-service:8554/cam7,rtsp://mediamtx-service:8554/cam8,rtsp://mediamtx-service:8554/cam9,rtsp://mediamtx-service:8554/cam10"
           volumeMounts:
             - name: shm
               mountPath: /dev/shm

@@ -16,7 +16,7 @@ QUEUE_NAME = "video_stream_queue"
 BUFFER_DURATION = 5.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("streamer")
+logger = logging.getLogger("capture")
 
 def get_redis_client():
     try:
@@ -33,10 +33,14 @@ def process_stream(stream_url, redis_client):
     stream_id = stream_url.split("/")[-1] # Simple ID derivation
     logger.info(f"Starting capture for {stream_id} ({stream_url})")
     
-    cap = cv2.VideoCapture(stream_url)
-    if not cap.isOpened():
-        logger.error(f"Could not open stream {stream_url}")
-        return
+    cap = None
+    while True:
+        cap = cv2.VideoCapture(stream_url)
+        if cap.isOpened():
+            break
+        logger.warning(f"Could not open stream {stream_id}. Retrying in 5 seconds...")
+        cap.release()
+        time.sleep(5)
 
     # Get stream properties
     fps = cap.get(cv2.CAP_PROP_FPS)
