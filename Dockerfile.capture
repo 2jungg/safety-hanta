@@ -9,8 +9,8 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Copy the whole repository (adjust if you have a .dockerignore)
-COPY . .
+# Copy only necessary files
+COPY src/capture /app/src/capture
 
 # Install Python dependencies required by the streamer
 RUN pip install --no-cache-dir redis opencv-python

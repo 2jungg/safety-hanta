@@ -27,8 +27,13 @@ RUN pip install --break-system-packages uv
 # Create a working directory
 WORKDIR /app
 
-# Copy the entire project into the container
-COPY . .
+# Copy only necessary directories and files
+COPY pyproject.toml .
+COPY configs ./configs
+COPY prompts ./prompts
+COPY cosmos_reason1_utils ./cosmos_reason1_utils
+COPY src/inference ./src/inference
+COPY qwen2_5_vl.py .
 
 # Step 1: Install base PyPI dependencies (torch is already in the base image)
 RUN uv pip install --break-system-packages \

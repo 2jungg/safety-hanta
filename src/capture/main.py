@@ -3,8 +3,7 @@ import time
 import cv2
 import redis
 import threading
-import tempfile
-import base64
+import uuid
 import json
 import logging
 
@@ -13,7 +12,11 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RTSP_URLS = os.getenv("RTSP_URLS", "").split(",")
 QUEUE_NAME = "video_stream_queue"
-BUFFER_DURATION = 5.0  # seconds
+BUFFER_DURATION = 15.0  # seconds
+TEMP_VIDEO_DIR = "/videos/temp_video"
+
+# Ensure temp dir exists
+os.makedirs(TEMP_VIDEO_DIR, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("capture")
@@ -70,34 +73,39 @@ def process_stream(stream_url, redis_client):
         if elapsed >= BUFFER_DURATION:
             # strictly time-based flush
             if frame_buffer:
-                # Write frames to a temporary mp4 file
+
+                # Generate unique filename
+                filename = f"{stream_id}_{uuid.uuid4()}.mp4"
+                file_path = os.path.join(TEMP_VIDEO_DIR, filename)
+                
                 try:
-                    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
-                        tmp_filename = tmp_file.name
-                    
+                    # Write frames to the shared file
                     # Define codec
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v') # or 'avc1' or 'h264' if available
-                    out = cv2.VideoWriter(tmp_filename, fourcc, fps, (width, height))
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
+                    out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
                     
                     for f in frame_buffer:
                         out.write(f)
                     out.release()
                     
-                    # Read binary data
-                    with open(tmp_filename, "rb") as f:
-                        video_bytes = f.read()
-                    
-                    # Cleanup temp file
-                    os.remove(tmp_filename)
-                    
-                    # Prepare payload
-                    # We encode bytes to base64 to store in JSON
+                    # Prepare payload with file path
                     payload = {
                         "stream_id": stream_id,
                         "timestamp": start_time,
                         "duration": elapsed,
-                        "video_data_base64": base64.b64encode(video_bytes).decode('utf-8')
+                        "video_path": file_path
                     }
+                    
+                    # Push to Redis
+                    if redis_client:
+                        redis_client.rpush(QUEUE_NAME, json.dumps(payload))
+                        logger.info(f"Pushed {elapsed:.2f}s chunk from {stream_id} to Redis (File: {filename}).")
+                    
+                except Exception as e:
+                    logger.error(f"Error processing batch for {stream_id}: {e}")
+                    # Try to cleanup if failed
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
                     
                     # Push to Redis
                     if redis_client:

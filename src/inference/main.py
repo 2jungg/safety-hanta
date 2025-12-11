@@ -9,6 +9,7 @@ import textwrap
 import redis
 import yaml
 import collections
+import datetime
 from rich import print
 from rich.pretty import pprint
 
@@ -37,6 +38,7 @@ QUEUE_NAME = "video_stream_queue"
 MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "saved_models_Cosmos-Reason1-7B_nvfp4_hf"))
 CONFIG_DIR = project_root / "configs"
 PROMPTS_DIR = project_root / "prompts"
+MAX_BATCH_SIZE = 16
 
 # Reuse the analyze_videos_batch.py logic for setup
 def setup_model():
@@ -94,64 +96,116 @@ def main():
     print("Inference Worker Ready. Waiting for videos...")
     
     while True:
-        # Blocking pop
-        # blpop returns (key, element)
+        # 1. Blocking pop for the first item
         item = redis_client.blpop(QUEUE_NAME, timeout=0)
         if not item:
             continue
             
-        _, data_json = item
+        # blpop returns (key, value)
+        batch = [item[1]]
+        
+        # 2. Dynamic batching: fetch remaining items up to limit
+        while len(batch) < MAX_BATCH_SIZE:
+            next_item = redis_client.lpop(QUEUE_NAME)
+            if not next_item:
+                break
+            batch.append(next_item)
+            
+        print(f"Processing batch of {len(batch)} videos...")
+        
+        # Prepare batch inputs
+        llm_inputs_batch = []
+        original_payloads = []
+        temp_files = []
+        
         try:
-            payload = json.loads(data_json)
-            stream_id = payload.get("stream_id")
-            video_b64 = payload.get("video_data_base64")
+            for data_json in batch:
+                try:
+                    payload = json.loads(data_json)
+                    stream_id = payload.get("stream_id")
+                    # video_b64 = payload.get("video_data_base64")
+                    video_path = payload.get("video_path")
+                    timestamp = payload.get("timestamp")
+                    duration = payload.get("duration", 0)
+                    
+                    # 3. Load Shedding: Check latency
+                    current_time = time.time()
+                    latency = current_time - timestamp
+                    if latency > 60.0:
+                        print(f"Dropping stale message from {stream_id} (Latency: {latency:.2f}s > 60s)")
+                        # Cleanup file if exists
+                        if video_path and os.path.exists(video_path):
+                            try:
+                                os.remove(video_path)
+                            except Exception as e:
+                                print(f"Error deleting stale file {video_path}: {e}")
+                        continue
+                        
+                    if not video_path or not os.path.exists(video_path):
+                        print(f"Video file missing for {stream_id}: {video_path}")
+                        continue
+                        
+                    # Calculate time range
+                    start_dt = datetime.datetime.fromtimestamp(timestamp)
+                    end_dt = datetime.datetime.fromtimestamp(timestamp + duration)
+                    start_str = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    end_str = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Store file path for cleanup later
+                    temp_files.append(video_path)
+                    
+                    # Inject Metadata into Prompt
+                    # Format: [Camera Source: <id> | Time: <start> ~ <end>]
+                    current_user_prompt = f"[Camera Source: {stream_id} | Time: {start_str} ~ {end_str}]\n{user_prompt}"
+                    
+                    conversation = create_conversation(
+                        system_prompt=system_prompt,
+                        user_prompt=current_user_prompt,
+                        videos=[video_path],
+                        vision_kwargs=vision_kwargs,
+                    )
+                    
+                    prompt = processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
+                    _image_inputs, video_inputs, video_kwargs = qwen_vl_utils.process_vision_info(conversation, return_video_kwargs=True)
+                    
+                    mm_data = {"video": video_inputs} if video_inputs is not None else {}
+                    llm_inputs = {
+                        "prompt": prompt,
+                        "multi_modal_data": mm_data,
+                        "mm_processor_kwargs": video_kwargs,
+                    }
+                    
+                    llm_inputs_batch.append(llm_inputs)
+                    original_payloads.append(payload)
+                    
+                except Exception as e:
+                    print(f"Error preparing item in batch: {e}")
+                    continue
             
-            if not video_b64:
+            if not llm_inputs_batch:
                 continue
+                
+            # Generate for batch
+            outputs = llm.generate(llm_inputs_batch, sampling_params=sampling_params)
             
-            print(f"Processing chunk from {stream_id}...")
-            
-            # Write temp video file
-            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
-                tmp_file.write(base64.b64decode(video_b64))
-                tmp_video_path = tmp_file.name
-            
-            # Prepare input
-            conversation = create_conversation(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                videos=[tmp_video_path],
-                vision_kwargs=vision_kwargs,
-            )
-            
-            prompt = processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
-            _image_inputs, video_inputs, video_kwargs = qwen_vl_utils.process_vision_info(conversation, return_video_kwargs=True)
-            
-            mm_data = {"video": video_inputs} if video_inputs is not None else {}
-            llm_inputs = {
-                "prompt": prompt,
-                "multi_modal_data": mm_data,
-                "mm_processor_kwargs": video_kwargs,
-            }
-            
-            # Generate
-            outputs = llm.generate([llm_inputs], sampling_params=sampling_params)
-            
-            # Output
-            output_text = outputs[0].outputs[0].text
-            
-            print("--- Analysis Result ---")
-            print(f"Stream: {stream_id}")
-            print(output_text)
-            print("-----------------------")
-            
-            # Cleanup
-            os.remove(tmp_video_path)
-            
-        except Exception as e:
-            print(f"Error processing item: {e}")
-            import traceback
-            traceback.print_exc()
+            # Process outputs
+            for i, output in enumerate(outputs):
+                output_text = output.outputs[0].text
+                stream_id = original_payloads[i].get("stream_id")
+                
+                print("--- Analysis Result ---")
+                print(f"Stream: {stream_id}")
+                print(output_text)
+                print("-----------------------")
+                
+        finally:
+            # Cleanup all temp files
+            for p in temp_files:
+                try:
+                    if os.path.exists(p):
+                        os.remove(p)
+                except Exception as e:
+                    print(f"Error cleaning up {p}: {e}")
 
 if __name__ == "__main__":
     main()

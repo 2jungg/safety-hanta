@@ -31,6 +31,12 @@ spec:
           volumeMounts:
             - name: shm
               mountPath: /dev/shm
+            - name: videos-volume
+              mountPath: /videos
       volumes:
         - name: shm
           emptyDir: {}
+        - name: videos-volume
+          hostPath:
+            path: /videos
+            type: Directory
