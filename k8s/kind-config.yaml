@@ -21,6 +21,8 @@ nodes:
         containerPath: /dev
       - hostPath: /home/jungg/workspace/safety-hanta/videos
         containerPath: /videos
+      - hostPath: /home/jungg/workspace/safety-hanta/src
+        containerPath: /home/jungg/workspace/safety-hanta/src
 
   # Inference worker (GPU node)
   - role: worker
@@ -47,6 +49,8 @@ nodes:
       - hostPath: /usr/lib/aarch64-linux-gnu/libcuda.so.1
         containerPath: /usr/lib/aarch64-linux-gnu/libcuda.so.1
         readOnly: true
+      - hostPath: /home/jungg/workspace/safety-hanta/src
+        containerPath: /home/jungg/workspace/safety-hanta/src
 
   # Generic worker (can host Redis, RTSP‑sim, etc.)
   - role: worker

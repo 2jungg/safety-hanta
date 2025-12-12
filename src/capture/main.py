@@ -54,70 +54,81 @@ def process_stream(stream_url, redis_client):
     if fps <= 0:
         fps = 30.0
     
-    frame_buffer = []
+    # Initialize streaming state
     start_time = time.time()
+    frame_count = 0
+    
+    # Setup initial VideoWriter
+    filename = f"{stream_id}_{uuid.uuid4()}.mp4"
+    file_path = os.path.join(TEMP_VIDEO_DIR, filename)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
+    out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
     
     while True:
         ret, frame = cap.read()
         if not ret:
             logger.warning(f"Failed to read frame from {stream_id}. Reconnecting...")
+            
+            # Close partial file and delete to avoid corruption
+            if out:
+                out.release()
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+            
             cap.release()
             time.sleep(2)
+            
+            # Attempt to reconnect
             cap = cv2.VideoCapture(stream_url)
+            # If cap isn't opened immediately, the next read() will fail and we loop again. This is fine.
+            
+            # Reset chunk state
+            start_time = time.time()
+            frame_count = 0
+            filename = f"{stream_id}_{uuid.uuid4()}.mp4"
+            file_path = os.path.join(TEMP_VIDEO_DIR, filename)
+            out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
             continue
         
-        frame_buffer.append(frame)
+        # Write frame immediately
+        out.write(frame)
+        frame_count += 1
+        
         current_time = time.time()
         elapsed = current_time - start_time
         
         if elapsed >= BUFFER_DURATION:
-            # strictly time-based flush
-            if frame_buffer:
-
-                # Generate unique filename
-                filename = f"{stream_id}_{uuid.uuid4()}.mp4"
-                file_path = os.path.join(TEMP_VIDEO_DIR, filename)
-                
+            # Finalize current chunk
+            out.release()
+            
+            if frame_count > 0:
                 try:
-                    # Write frames to the shared file
-                    # Define codec
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
-                    out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
-                    
-                    for f in frame_buffer:
-                        out.write(f)
-                    out.release()
-                    
-                    # Prepare payload with file path
+                    # Send payload
                     payload = {
                         "stream_id": stream_id,
                         "timestamp": start_time,
                         "duration": elapsed,
                         "video_path": file_path
                     }
-                    
-                    # Push to Redis
                     if redis_client:
                         redis_client.rpush(QUEUE_NAME, json.dumps(payload))
-                        logger.info(f"Pushed {elapsed:.2f}s chunk from {stream_id} to Redis (File: {filename}).")
-                    
+                        logger.info(f"Pushed {elapsed:.2f}s ({frame_count} frames) from {stream_id} to Redis.")
                 except Exception as e:
-                    logger.error(f"Error processing batch for {stream_id}: {e}")
-                    # Try to cleanup if failed
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                    
-                    # Push to Redis
-                    if redis_client:
-                        redis_client.rpush(QUEUE_NAME, json.dumps(payload))
-                        logger.info(f"Pushed {elapsed:.2f}s chunk from {stream_id} to Redis.")
-                    
-                except Exception as e:
-                    logger.error(f"Error processing batch for {stream_id}: {e}")
+                    logger.error(f"Error processing chunk: {e}")
+            else:
+                 # Empty chunk?
+                 if os.path.exists(file_path):
+                    os.remove(file_path)
             
-            # Reset buffer
-            frame_buffer = []
-            start_time = time.time() # Reset strictly to now
+            # Start next chunk
+            start_time = time.time()
+            frame_count = 0
+            filename = f"{stream_id}_{uuid.uuid4()}.mp4"
+            file_path = os.path.join(TEMP_VIDEO_DIR, filename)
+            out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
             
         # Optional: Sleep to prevent tight loop if FPS is high? 
         # Actually cv2.read() is blocking usually based on stream FPS.
@@ -137,13 +148,31 @@ def main():
             time.sleep(2)
             redis_client = get_redis_client()
             
-    threads = []
-    for url in RTSP_URLS:
-        if url:
-            t = threading.Thread(target=process_stream, args=(url.strip(), redis_client))
-            t.daemon = True
-            t.start()
-            threads.append(t)
+    # Sharding Logic: Process ONLY the stream corresponding to this worker's index
+    hostname = os.getenv("HOSTNAME", "capture-worker-1")
+    try:
+        # Expected hostname format: capture-worker-{index}
+        # We expect index to start from 1 (capture-worker-1 -> cam1)
+        worker_id = int(hostname.split("-")[-1])
+        
+        # Calculate array index (0-based)
+        # capture-worker-1 -> id 1 -> index 0
+        url_index = worker_id - 1
+        
+        if 0 <= url_index < len(RTSP_URLS):
+            target_url = RTSP_URLS[url_index]
+            logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to {target_url} (Index: {url_index})")
+            
+            # Run processing in main thread since we only have one stream
+            if target_url:
+                process_stream(target_url.strip(), redis_client)
+        else:
+            logger.error(f"Worker ID {worker_id} is out of range for {len(RTSP_URLS)} RTSP URLs.")
+            
+    except ValueError:
+        logger.error(f"Could not parse worker ID from hostname: {hostname}. Fallback to processing all streams?")
+        # Fallback or exit? For now, exit to avoid duplication
+        return
     
     # Keep main thread alive
     try:

@@ -1,18 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: capture-worker
+  labels:
+    app: capture
+spec:
+  ports:
+  - port: 80
+    name: dummy
+  clusterIP: None
+  selector:
+    app: capture
+---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: capture-worker
 spec:
+  serviceName: "capture-worker"
   replicas: 10
+  ordinals:
+    start: 1
   selector:
     matchLabels:
       app: capture
-      worker: "1"
   template:
     metadata:
       labels:
         app: capture
-        worker: "1"
     spec:
       nodeSelector:
         role: capture
@@ -33,10 +48,16 @@ spec:
               mountPath: /dev/shm
             - name: videos-volume
               mountPath: /videos
+            - name: src-volume
+              mountPath: /app/src/capture
       volumes:
         - name: shm
           emptyDir: {}
         - name: videos-volume
           hostPath:
             path: /videos
+            type: Directory
+        - name: src-volume
+          hostPath:
+            path: /home/jungg/workspace/safety-hanta/src/capture
             type: Directory

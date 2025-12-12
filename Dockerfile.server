@@ -32,7 +32,6 @@ COPY pyproject.toml .
 COPY configs ./configs
 COPY prompts ./prompts
 COPY cosmos_reason1_utils ./cosmos_reason1_utils
-COPY src/inference ./src/inference
 COPY qwen2_5_vl.py .
 
 # Step 1: Install base PyPI dependencies (torch is already in the base image)
@@ -56,8 +55,4 @@ RUN git clone https://github.com/pytorch/torchcodec.git && \
 RUN uv pip install --break-system-packages --system -e ./cosmos_reason1_utils
 
 # Step 4: Patch vLLM Qwen2.5 VL model
-# Location based on run_nvfp4.sh which used python3.12
 COPY qwen2_5_vl.py /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2_5_vl.py
-
-# Set the default command (can be overridden by K8s)
-CMD [ "python3", "scripts/analyze_videos_batch.py" ]

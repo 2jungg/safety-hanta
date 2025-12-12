@@ -52,5 +52,4 @@ CONTRIBUTING.md
 REMEMBER.md
 instruction.md
 justfile
-uv.lock
-pyproject.toml
+

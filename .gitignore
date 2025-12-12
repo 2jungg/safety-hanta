@@ -288,4 +288,5 @@ core.*
 /reports/
 
 /saved_models_Cosmos-Reason1-7B_nvfp4_hf
+/Qwen3-VL-2B-Instruct-NVFP4
 /videos

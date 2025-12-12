@@ -6,6 +6,8 @@ metadata:
     app: inference
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: inference
@@ -45,10 +47,16 @@ spec:
           mountPath: /usr/lib/aarch64-linux-gnu/libcuda.so.1
         - name: videos-volume
           mountPath: /videos
+        - name: src-volume
+          mountPath: /app/src/inference
       volumes:
       - name: videos-volume
         hostPath:
           path: /videos
+          type: Directory
+      - name: src-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/src/inference
           type: Directory
       - name: model-volume
         hostPath:
