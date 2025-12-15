@@ -31,7 +31,7 @@ ruff.toml
 .pre-commit-config-base.yaml
 
 # Project specific
-saved_models_Cosmos-Reason1-7B_nvfp4_hf
+models
 videos
 reports
 sparse_logs

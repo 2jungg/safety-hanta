@@ -26,10 +26,10 @@ spec:
         resources:
           limits:
             nvidia.com/gpu: 1
-        command: ["python3", "-u", "src/inference/main.py"]
+        command: ["python3", "-u", "src/inference/main_qwen3.py"]
         env:
         - name: MODEL_PATH
-          value: "/app/saved_models_Cosmos-Reason1-7B_nvfp4_hf"
+          value: "/models/current"
         - name: LD_LIBRARY_PATH
           value: "/usr/lib/aarch64-linux-gnu:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
         - name: REDIS_HOST
@@ -38,7 +38,7 @@ spec:
           value: "6379"
         volumeMounts:
         - name: model-volume
-          mountPath: /app/saved_models_Cosmos-Reason1-7B_nvfp4_hf
+          mountPath: /models
         - name: nvidia-smi
           mountPath: /usr/bin/nvidia-smi
         - name: libnvidia-ml
