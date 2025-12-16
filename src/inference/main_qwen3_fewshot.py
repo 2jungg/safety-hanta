@@ -56,8 +56,13 @@ def setup_model():
     sampling_kwargs = yaml.safe_load(open(CONFIG_DIR / "sampling_params.yaml", "rb"))
     sampling_params = vllm.SamplingParams(**sampling_kwargs)
     
-    print(f"Loading Prompt Config from {PROMPTS_DIR}/industrial_safety_short.yaml")
-    prompt_kwargs = yaml.safe_load(open(PROMPTS_DIR / "industrial_safety_short.yaml", "rb"))
+
+    print(f"Loading Prompt Config from {PROMPTS_DIR}/industrial_safety_fewshot.yaml")
+    prompt_kwargs = yaml.safe_load(open(PROMPTS_DIR / "industrial_safety_fewshot.yaml", "rb"))
+    
+    # Extract few-shot examples (bypass PromptConfig strict validation)
+    few_shot_examples = prompt_kwargs.pop("few_shot_examples", [])
+    
     prompt_config = PromptConfig.model_validate(prompt_kwargs)
     
     # System Prompt construction
@@ -73,7 +78,6 @@ def setup_model():
     print("Loading Model...")
     llm = vllm.LLM(
         model=MODEL_PATH,
-        limit_mm_per_prompt={"video": 1},
         enable_prefix_caching=True,
         enable_chunked_prefill=True,
         gpu_memory_utilization=0.5,
@@ -82,9 +86,9 @@ def setup_model():
     # Use generic AutoProcessor for Qwen3 compatibility
     processor = transformers.AutoProcessor.from_pretrained(MODEL_PATH)
     
-    return llm, processor, sampling_params, vision_kwargs, system_prompt, user_prompt
+    return llm, processor, sampling_params, vision_kwargs, system_prompt, user_prompt, few_shot_examples
 
-def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt, user_prompt, output_queue):
+def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt, user_prompt, few_shot_examples, output_queue):
     """
     Producer thread:
     1. Fetches data from Redis.
@@ -104,6 +108,40 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
         elif isinstance(obj, list):
             return tuple(make_hashable(i) for i in obj)
         return obj
+
+    # Pre-construct static conversation (System + Few-Shot)
+    base_conversation = []
+    
+    # 1. System Prompt
+    if system_prompt:
+        base_conversation.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+    
+    # 2. Few-Shot Examples
+    for example in few_shot_examples:
+        # User Turn
+        usr_content = []
+        if "video" in example:
+            usr_content.append({"type": "video", "video": example["video"]})
+        if "user" in example:
+            usr_content.append({"type": "text", "text": example["user"]})
+        base_conversation.append({"role": "user", "content": usr_content})
+        
+        # Assistant Turn
+        if "assistant" in example:
+            base_conversation.append({"role": "assistant", "content": [{"type": "text", "text": example["assistant"]}]})
+
+    # Apply vision_kwargs to base conversation once
+    if vision_kwargs:
+        def apply_kwargs_to_msg(msg):
+             if isinstance(msg["content"], list):
+                for item in msg["content"]:
+                    if isinstance(item, dict) and item.get("type") in ["video", "image"]:
+                        item.update(vision_kwargs)
+
+        for msg in base_conversation:
+            apply_kwargs_to_msg(msg)
+
+    import copy
 
     while True:
         # Prepare batch of valid items
@@ -184,12 +222,22 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                     # Inject Metadata into Prompt
                     current_user_prompt = f"[Camera Source: {stream_id} | Time: {start_str} ~ {end_str}]\n{user_prompt}"
                     
-                    conversation = create_conversation(
-                        system_prompt=system_prompt,
-                        user_prompt=current_user_prompt,
-                        videos=[video_path],
-                        vision_kwargs=vision_kwargs,
-                    )
+                    # Clone base conversation (Deepcopy to avoid side effects across threads/iterations)
+                    conversation = copy.deepcopy(base_conversation)
+
+                    # 3. Current Input (User)
+                    current_usr_content = []
+                    current_usr_content.append({"type": "video", "video": video_path})
+                    current_usr_content.append({"type": "text", "text": current_user_prompt})
+                    
+                    # Create message dict
+                    current_msg = {"role": "user", "content": current_usr_content}
+                    
+                    # Apply vision_kwargs to current input
+                    if vision_kwargs:
+                        apply_kwargs_to_msg(current_msg)
+                        
+                    conversation.append(current_msg)
                     
                     # Tokenization and Vision Processing (CPU)
                     prompt = processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
@@ -256,7 +304,7 @@ def main():
             print("Waiting for Redis...")
             time.sleep(2)
             
-    llm, processor, sampling_params, vision_kwargs, system_prompt, user_prompt = setup_model()
+    llm, processor, sampling_params, vision_kwargs, system_prompt, user_prompt, few_shot_examples = setup_model()
     
     # Setup Pipeline
     batch_queue = queue.Queue(maxsize=PREPARED_QUEUE_SIZE)
@@ -264,7 +312,7 @@ def main():
     # Start Producer Thread
     t = threading.Thread(
         target=batch_preparer_worker,
-        args=(redis_client, processor, vision_kwargs, system_prompt, user_prompt, batch_queue)
+        args=(redis_client, processor, vision_kwargs, system_prompt, user_prompt, few_shot_examples, batch_queue)
     )
     t.daemon = True
     t.start()
