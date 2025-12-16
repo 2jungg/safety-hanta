@@ -150,28 +150,47 @@ def main():
             
     # Sharding Logic: Process ONLY the stream corresponding to this worker's index
     hostname = os.getenv("HOSTNAME", "capture-worker-1")
+    rtsp_base_url = os.getenv("RTSP_BASE_URL") # e.g., "rtsp://service:8554/cam"
+    
     try:
         # Expected hostname format: capture-worker-{index}
-        # We expect index to start from 1 (capture-worker-1 -> cam1)
-        worker_id = int(hostname.split("-")[-1])
+        # We expect index to start from 0 for StatefulSet ordinals usually, but let's check.
+        # If StatefulSet name is "capture-worker", pods are "capture-worker-0", "capture-worker-1"...
+        # The user's previous code assumed "capture-worker-1" -> ID 1.
+        # Let's handle generic "capture-worker-{N}" format.
         
-        # Calculate array index (0-based)
-        # capture-worker-1 -> id 1 -> index 0
-        url_index = worker_id - 1
+        parts = hostname.split("-")
+        worker_id = int(parts[-1])
         
-        if 0 <= url_index < len(RTSP_URLS):
-            target_url = RTSP_URLS[url_index]
-            logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to {target_url} (Index: {url_index})")
+        target_url = None
+        
+        if rtsp_base_url:
+            # Dynamic Mode
+            # If pods are worker-0, worker-1... corresponding to cam1, cam2...
+            # Then cam_index = worker_id + 1
+            # Adjust mapping as needed. Let's assume 1-based mapping for cameras.
+            # If using StatefulSet with start ordinal 1 (as seen in yaml: ordinals: start: 1)
+            # Then worker-1 -> cam1.
             
-            # Run processing in main thread since we only have one stream
-            if target_url:
-                process_stream(target_url.strip(), redis_client)
+            cam_index = worker_id 
+            target_url = f"{rtsp_base_url}{cam_index}"
+            logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url}")
+            
         else:
-            logger.error(f"Worker ID {worker_id} is out of range for {len(RTSP_URLS)} RTSP URLs.")
+            # Legacy Mode (Fixed List)
+            # capture-worker-1 -> index 0
+            url_index = worker_id - 1
+            if 0 <= url_index < len(RTSP_URLS):
+                target_url = RTSP_URLS[url_index]
+                logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Legacy List Index: {url_index}")
+            else:
+                 logger.error(f"Worker ID {worker_id} is out of range for {len(RTSP_URLS)} RTSP URLs.")
+
+        if target_url:
+             process_stream(target_url.strip(), redis_client)
             
     except ValueError:
         logger.error(f"Could not parse worker ID from hostname: {hostname}. Fallback to processing all streams?")
-        # Fallback or exit? For now, exit to avoid duplication
         return
     
     # Keep main thread alive

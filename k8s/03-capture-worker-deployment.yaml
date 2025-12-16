@@ -18,7 +18,7 @@ metadata:
   name: capture-worker
 spec:
   serviceName: "capture-worker"
-  replicas: 10
+  replicas: 20
   ordinals:
     start: 1
   selector:
@@ -41,8 +41,8 @@ spec:
               value: "redis-service"
             - name: REDIS_PORT
               value: "6379"
-            - name: RTSP_URLS
-              value: "rtsp://mediamtx-service:8554/cam1,rtsp://mediamtx-service:8554/cam2,rtsp://mediamtx-service:8554/cam3,rtsp://mediamtx-service:8554/cam4,rtsp://mediamtx-service:8554/cam5,rtsp://mediamtx-service:8554/cam6,rtsp://mediamtx-service:8554/cam7,rtsp://mediamtx-service:8554/cam8,rtsp://mediamtx-service:8554/cam9,rtsp://mediamtx-service:8554/cam10"
+            - name: RTSP_BASE_URL
+              value: "rtsp://mediamtx-service:8554/cam"
           volumeMounts:
             - name: shm
               mountPath: /dev/shm

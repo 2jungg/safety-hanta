@@ -1,7 +1,7 @@
 import json
 import os
 
-config_path = "models/Qwen3-VL-2B-Instruct-NVFP4/config.json"
+config_path = "models/Qwen3-VL-4B-Instruct-NVFP4/config.json"
 
 if not os.path.exists(config_path):
     print(f"Error: {config_path} not found")

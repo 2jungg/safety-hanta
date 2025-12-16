@@ -49,3 +49,24 @@
     *   `capture-worker`는 공유 볼륨에 파일을 쓰고, Redis에는 오직 **파일 경로(String Path)**만 보냅니다.
     *   `inference`는 해당 경로에서 파일을 직접 읽습니다(Read-only).
 *   **효과**: 불필요한 메모리 복사를 방지(Zero-copy)하고 시스템 전체 대역폭을 절약합니다.
+
+---
+
+## ⚙️ 설정 가이드 (Configuration)
+
+### 비디오 스트림 개수 확장 (Scaling)
+시스템의 카메라 채널 수를 기본 10개에서 N개로 확장하거나 축소하려면 다음 두 가지 설정을 변경해야 합니다.
+
+1.  **시뮬레이터 채널 수 변경** (`k8s/02-rtsp-sim.yaml`)
+    *   `simulator` 컨테이너의 `NUM_STREAMS` 환경 변수를 원하는 숫자로 수정합니다.
+    ```yaml
+    - name: NUM_STREAMS
+      value: "20"  # 예: 20개 채널 생성
+    ```
+
+2.  **캡처 워커 파드 수 변경** (`k8s/03-capture-worker-deployment.yaml`)
+    *   `replicas` 개수를 `NUM_STREAMS`와 동일하게 맞춥니다.
+    *   각 파드는 자동으로 자신의 인덱스에 맞는 카메라(`cam{N}`)에 연결합니다.
+    ```yaml
+    replicas: 20  # 파드 20개 생성 (worker-0 -> cam1 ... worker-19 -> cam20)
+    ```

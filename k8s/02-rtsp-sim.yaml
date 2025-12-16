@@ -47,18 +47,27 @@ spec:
           value: "no"
       - name: simulator
         image: linuxserver/ffmpeg:latest
+        env:
+        - name: NUM_STREAMS
+          value: "20"
         volumeMounts:
         - name: videos-volume
           mountPath: /videos
         command: ["/bin/bash", "-c"]
-        # Publish 10 streams (cam1 to cam10) from the sample videos
-        # Using & to run in background.
         args:
         - >-
           sleep 10;
-          for i in {1..10}; do
-            VIDEO_NUM=$(printf "%02d" $i);
-            ffmpeg -re -stream_loop -1 -i /videos/accident_video-$VIDEO_NUM.mp4 -c copy -f rtsp rtsp://localhost:8554/cam$i &
+          num=${NUM_STREAMS:-10};
+          for i in $(seq 1 $num); do
+            vid_idx=$(( (i-1) % 20 + 1 ));
+            VIDEO_NUM=$(printf "%02d" $vid_idx);
+            
+            # Check if file exists, fallback to 01 if not (safety)
+            if [ ! -f /videos/accident_video-$VIDEO_NUM.mp4 ]; then
+               VIDEO_NUM="01";
+            fi
+            
+            ffmpeg -re -stream_loop -1 -i /videos/accident_video-$VIDEO_NUM.mp4 -r 4 -c:v libx264 -preset ultrafast -f rtsp -rtsp_transport tcp rtsp://localhost:8554/cam$i &
           done;
           wait
 ---
