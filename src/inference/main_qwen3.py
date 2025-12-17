@@ -40,7 +40,8 @@ from cosmos_reason1_utils.vision import VisionConfig
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 QUEUE_NAME = "video_stream_queue"
-MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
+MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-4B-Instruct-NVFP4"))
+SPECULATIVE_MODEL_PATH = os.getenv("SPECULATIVE_MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
 CONFIG_DIR = project_root / "configs"
 PROMPTS_DIR = project_root / "prompts"
 MAX_BATCH_SIZE = 20
@@ -71,13 +72,24 @@ def setup_model():
         raise ValueError("No user prompt provided.")
     
     print("Loading Model...")
-    llm = vllm.LLM(
-        model=MODEL_PATH,
-        limit_mm_per_prompt={"video": 1},
-        enable_prefix_caching=True,
-        enable_chunked_prefill=True,
-        gpu_memory_utilization=0.5,
-    )
+    try:
+        llm = vllm.LLM(
+            model=MODEL_PATH,
+            speculative_config={
+                "model": SPECULATIVE_MODEL_PATH,
+                "method": "ngram",
+                "num_speculative_tokens": 5,
+                "prompt_lookup_max": 4,
+            },
+            limit_mm_per_prompt={"video": 1},
+            enable_prefix_caching=True,
+            enable_chunked_prefill=True,
+            gpu_memory_utilization=0.6,
+            trust_remote_code=True,
+        )
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        raise
     
     # Use generic AutoProcessor for Qwen3 compatibility
     processor = transformers.AutoProcessor.from_pretrained(MODEL_PATH)
