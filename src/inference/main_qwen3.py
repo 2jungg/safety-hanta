@@ -40,8 +40,8 @@ from cosmos_reason1_utils.vision import VisionConfig
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 QUEUE_NAME = "video_stream_queue"
-MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-4B-Instruct-NVFP4"))
-SPECULATIVE_MODEL_PATH = os.getenv("SPECULATIVE_MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
+MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
+# SPECULATIVE_MODEL_PATH = os.getenv("SPECULATIVE_MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
 CONFIG_DIR = project_root / "configs"
 PROMPTS_DIR = project_root / "prompts"
 MAX_BATCH_SIZE = 20
@@ -71,16 +71,16 @@ def setup_model():
     if not user_prompt:
         raise ValueError("No user prompt provided.")
     
-    print("Loading Model...")
+    print(f"Loading Model from {MODEL_PATH}...")
     try:
         llm = vllm.LLM(
             model=MODEL_PATH,
-            speculative_config={
-                "model": SPECULATIVE_MODEL_PATH,
-                "method": "ngram",
-                "num_speculative_tokens": 5,
-                "prompt_lookup_max": 4,
-            },
+            # speculative_config={
+            #     "model": SPECULATIVE_MODEL_PATH,
+            #     "method": "ngram",
+            #     "num_speculative_tokens": 5,
+            #     "prompt_lookup_max": 4,
+            # },
             limit_mm_per_prompt={"video": 1},
             enable_prefix_caching=True,
             enable_chunked_prefill=True,

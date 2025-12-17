@@ -66,7 +66,7 @@ def setup_model():
     if not user_prompt:
         raise ValueError("No user prompt provided.")
     
-    print("Loading Model...")
+    print(f"Loading Model from {MODEL_PATH}...")
     llm = vllm.LLM(
         model=MODEL_PATH,
         limit_mm_per_prompt={"video": 1},
