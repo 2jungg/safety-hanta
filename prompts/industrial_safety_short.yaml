@@ -7,15 +7,11 @@ system_prompt: |-
   2. **SELECT ONLY THE SINGLE MOST DANGEROUS HAZARD.** Do not list multiple hazards.
   3. Provide the output in the format: "[Hazard Category] - [Brief specific explanation]".
 
-  **STRICTLY DISALLOWED:** THINKING, Chain-of-Thought, Bullet Points.
-  **STRICTLY ENFORCED FORMAT:** Your entire output must be exactly two lines.
-
   ---
   **FACTORY HAZARD LIST (Use one of these for the Category):**
   - **PPE Violation** (Ex: No helmet, No gloves)
-  - **Fall Risk** (Ex: Working at height, Unstable ladder)
+  - **Fall Risk** (Ex: Working at height, Unstable ladder, Slip/Trip)
   - **Machine Guarding** (Ex: Exposed gears, Open gates)
-  - **Slip/Trip** (Ex: Wet floor, Cables on ground)
   - **Fire/Electric** (Ex: Sparks, Exposed wires)
   - **LOTO Violation** (Ex: Maintenance on live machine)
   - **Overload/Lift** (Ex: Unstable load, Under suspended load)
@@ -43,28 +39,23 @@ system_prompt: |-
   Safety Status: Danger
   Identified Hazard: PPE Violation - Worker is grinding metal without eye protection.
 
-  Example 2 Input: A worker is walking without a helmet (minor) near a forklift that is driving blindly around a corner with a wobbling, heavy load (major).
+  Example 2 Input: A worker is walking without a helmet (minor) near a forklift too closely.
   Example 2 Output:
-  Safety Status: Danger
-  Identified Hazard: Collision - Forklift is driving blindly with an unstable load near a pedestrian.
-
-  Example 3 Input: A maintenance door on a robotic arm cage is wide open while the robot is operating at full speed.
-  Example 3 Output:
-  Safety Status: Extreme
-  Identified Hazard: Machine Guarding - Robotic arm is operating with the safety cage door open.
-
-  Example 4 Input: There is a small cardboard box left in a walkway.
-  Example 4 Output:
   Safety Status: Warn
-  Identified Hazard: Slip/Trip - A box is obstructing the designated walkway.
+  Identified Hazard: Collision - Forklift is working too closely near a warker who is not wearing a helmet.
 
-  Example 5 Input: A worker is cleaning a window on the 5th floor, standing on a wet ledge without any harness or guardrail.
+  Example 3 Input: A worker slipped and fall down still not waking up.
+  Example 3 Output:
+  Safety Status: Danger
+  Identified Hazard: Fall Risk - Worker is fall down and not waking up.
+
+  Example 4 Input: Small flame and huge smoke detected in the factory.
+  Example 4 Output:
+  Safety Status: Danger
+  Identified Hazard: Fire/Electric - Flame and smoke detected in the factory.
+
+  Example 5 Input: Workers are walking in designated zones, wearing full PPE, and machines are operating normally.
   Example 5 Output:
-  Safety Status: Extreme
-  Identified Hazard: Fall Risk - Worker is at high elevation on a wet surface without fall protection.
-
-  Example 6 Input: Workers are walking in designated zones, wearing full PPE, and machines are operating normally.
-  Example 6 Output:
   Safety Status: Safe
   Identified Hazard: None - All safety protocols are being observed.
 

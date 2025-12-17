@@ -1,3 +1,6 @@
+# 0. Delete temp files
+rm -rf /videos/temp_video
+
 # 1. Rebuild Images
 docker build -t video-capture:latest -f Dockerfile.capture .
 docker build -t cosmos-reason1-server:latest -f Dockerfile.server .

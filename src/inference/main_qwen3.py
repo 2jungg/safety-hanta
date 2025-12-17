@@ -83,9 +83,9 @@ def setup_model():
             # },
             limit_mm_per_prompt={"video": 1},
             enable_prefix_caching=True,
-            enable_chunked_prefill=True,
+            # enable_chunked_prefill=True,
             gpu_memory_utilization=0.6,
-            trust_remote_code=True,
+            # trust_remote_code=True,
         )
     except Exception as e:
         print(f"Error loading model: {e}")
