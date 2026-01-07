@@ -173,7 +173,7 @@ def main():
             # Then worker-1 -> cam1.
             
             cam_index = worker_id 
-            target_url = f"{rtsp_base_url}{cam_index}"
+            target_url = f"{rtsp_base_url}{cam_index-1}/media.smp"
             logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url}")
             
         else:

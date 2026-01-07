@@ -36,6 +36,8 @@ from cosmos_reason1_utils.text import (
 )
 from cosmos_reason1_utils.vision import VisionConfig
 
+import torch
+
 # Configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
@@ -75,17 +77,10 @@ def setup_model():
     try:
         llm = vllm.LLM(
             model=MODEL_PATH,
-            # speculative_config={
-            #     "model": SPECULATIVE_MODEL_PATH,
-            #     "method": "ngram",
-            #     "num_speculative_tokens": 5,
-            #     "prompt_lookup_max": 4,
-            # },
             limit_mm_per_prompt={"video": 1},
-            enable_prefix_caching=True,
-            # enable_chunked_prefill=True,
-            gpu_memory_utilization=0.6,
-            # trust_remote_code=True,
+            enable_prefix_caching=False,
+            gpu_memory_utilization=float(os.getenv("GPU_MEMORY_UTILIZATION", 0.3)),
+            trust_remote_code=True,
         )
     except Exception as e:
         print(f"Error loading model: {e}")
@@ -95,6 +90,24 @@ def setup_model():
     processor = transformers.AutoProcessor.from_pretrained(MODEL_PATH)
     
     return llm, processor, sampling_params, vision_kwargs, system_prompt, user_prompt
+
+def pin_memory_recursive(obj):
+    """
+    Recursively pin tensors in memory.
+    This enables faster Host-to-Device transfer (or Zero-Copy on Unified Memory).
+    """
+    if torch.is_tensor(obj):
+        if obj.device.type == 'cpu' and not obj.is_pinned():
+            return obj.pin_memory()
+        return obj
+    elif isinstance(obj, dict):
+        return {k: pin_memory_recursive(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [pin_memory_recursive(v) for v in obj]
+    elif isinstance(obj, tuple):
+        return tuple(pin_memory_recursive(v) for v in obj)
+    else:
+        return obj
 
 def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt, user_prompt, output_queue):
     """
@@ -170,6 +183,7 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
             continue
             
         print(f"[Preparer] Prepared batch of {len(batch_data)} videos. Processing inputs...")
+        batch_process_start = time.time()
         
         # 3. Processing Loop (Heavy CPU/IO)
         llm_inputs_batch = []
@@ -203,6 +217,7 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                         vision_kwargs=vision_kwargs,
                     )
                     
+                    start_process = time.time()
                     # Tokenization and Vision Processing (CPU)
                     prompt = processor.apply_chat_template(conversation, tokenize=False, add_generation_prompt=True)
                     
@@ -215,7 +230,14 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                         return_video_metadata=True,
                         image_patch_size=image_patch_size
                     )
+                    end_process = time.time()
+                    print(f"[Preparer] Video {stream_id} processed in {end_process - start_process:.4f}s")
                     
+                    # Optimization: Pin memory to speed up transfer (Unified Memory optimization)
+                    # We do NOT move to CUDA here because VLLM/HF requires CPU inputs (conversion to numpy).
+                    if video_inputs is not None:
+                        video_inputs = pin_memory_recursive(video_inputs)
+
                     # Apply workaround to video_kwargs
                     if video_kwargs:
                         video_kwargs = make_hashable(video_kwargs)
@@ -244,7 +266,7 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
             if llm_inputs_batch:
                 # Put ready batch into queue
                 output_queue.put((llm_inputs_batch, original_payloads, temp_files))
-                print(f"[Preparer] Batch enqueued. Queue size: {output_queue.qsize()}")
+                print(f"[Preparer] Batch enqueued. Queue size: {output_queue.qsize()}. Total processing time: {time.time() - batch_process_start:.4f}s")
             else:
                  # If all failed, clean up immediately
                  for p in temp_files:
@@ -287,22 +309,26 @@ def main():
         # Get ready batch from queue
         try:
             # Blocking get
+            wait_start = time.time()
             llm_inputs_batch, original_payloads, temp_files = batch_queue.get()
+            print(f"[Main] Waited {time.time() - wait_start:.4f}s for next batch.")
             
             print(f"[Main] Processing batch of {len(llm_inputs_batch)} on GPU...")
             
-            # Generate (GPU)
+            # Generate (GPU)z
+            gen_start = time.time()
             outputs = llm.generate(llm_inputs_batch, sampling_params=sampling_params)
+            print(f"[Main] GPU Inference time: {time.time() - gen_start:.4f}s")
             
             # Process outputs
             for i, output in enumerate(outputs):
                 output_text = output.outputs[0].text
                 stream_id = original_payloads[i].get("stream_id")
                 
-                print("--- Analysis Result ---")
-                print(f"Stream: {stream_id}")
-                print(output_text)
-                print("-----------------------")
+                # print("--- Analysis Result ---")
+                # print(f"Stream: {stream_id}")
+                # print(output_text)
+                # print("-----------------------")
             
             # Cleanup
             print("[Main] Cleaning up temp files...")

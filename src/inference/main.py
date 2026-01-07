@@ -36,8 +36,8 @@ from cosmos_reason1_utils.vision import VisionConfig
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 QUEUE_NAME = "video_stream_queue"
-# MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Cosmos-Reason1-7B_nvfp4_hf"))
-MODEL_PATH = project_root / "models/Cosmos-Reason1-7B_nvfp4_hf"
+MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Cosmos-Reason1-7B_nvfp4_hf"))
+# MODEL_PATH = project_root / "models/Cosmos-Reason1-7B_nvfp4_hf"
 CONFIG_DIR = project_root / "configs"
 PROMPTS_DIR = project_root / "prompts"
 MAX_BATCH_SIZE = 20

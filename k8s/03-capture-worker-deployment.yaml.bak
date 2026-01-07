@@ -42,7 +42,7 @@ spec:
             - name: REDIS_PORT
               value: "6379"
             - name: RTSP_BASE_URL
-              value: "rtsp://admin:hanta123$@202.31.34.211:558/LiveChannel/"
+              value: "rtsp://mediamtx-service:8554/cam"
           volumeMounts:
             - name: shm
               mountPath: /dev/shm
