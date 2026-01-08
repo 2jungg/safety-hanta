@@ -10,10 +10,10 @@ import logging
 # Configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-RTSP_URLS = os.getenv("RTSP_URLS", "").split(",")
 QUEUE_NAME = "video_stream_queue"
 BUFFER_DURATION = float(os.getenv("BUFFER_DURATION", "10"))  # seconds
 TEMP_VIDEO_DIR = "/videos/temp_video"
+RTSP_BASE_URL_DEFAULT = os.getenv("RTSP_BASE_URL_DEFAULT", "rtsp://localhost:8554/cam") # Default for local testing
 
 # Ensure temp dir exists
 os.makedirs(TEMP_VIDEO_DIR, exist_ok=True)
@@ -150,7 +150,7 @@ def main():
             
     # Sharding Logic: Process ONLY the stream corresponding to this worker's index
     hostname = os.getenv("HOSTNAME", "capture-worker-1")
-    rtsp_base_url = os.getenv("RTSP_BASE_URL") # e.g., "rtsp://service:8554/cam"
+    rtsp_base_url = os.getenv("RTSP_BASE_URL", RTSP_BASE_URL_DEFAULT) # e.g., "rtsp://service:8554/cam"
     
     try:
         # Expected hostname format: capture-worker-{index}
@@ -162,34 +162,13 @@ def main():
         parts = hostname.split("-")
         worker_id = int(parts[-1])
         
-        target_url = None
+        # Dynamic Mode (now the only mode)
+        cam_index = worker_id 
+        target_url = f"{rtsp_base_url}{cam_index}" # Match simulator's 1-based indexing and direct path
+        display_stream_id = f"cam{cam_index}" # Custom ID for display, consistent with simulator
+        logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url} with display ID: {display_stream_id}")
         
-        if rtsp_base_url:
-            # Dynamic Mode
-            # If pods are worker-0, worker-1... corresponding to cam1, cam2...
-            # Then cam_index = worker_id + 1
-            # Adjust mapping as needed. Let's assume 1-based mapping for cameras.
-            # If using StatefulSet with start ordinal 1 (as seen in yaml: ordinals: start: 1)
-            # Then worker-1 -> cam1.
-            
-            cam_index = worker_id 
-            target_url = f"{rtsp_base_url}{cam_index-1}/media.smp"
-            display_stream_id = f"cam{cam_index-1}" # Custom ID for display
-            logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url} with display ID: {display_stream_id}")
-            
-        else:
-            # Legacy Mode (Fixed List)
-            # capture-worker-1 -> index 0
-            url_index = worker_id - 1
-            if 0 <= url_index < len(RTSP_URLS):
-                target_url = RTSP_URLS[url_index]
-                display_stream_id = f"cam{url_index}" # Custom ID for display, consistent with dynamic mode
-                logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Legacy List Index: {url_index} with display ID: {display_stream_id}")
-            else:
-                 logger.error(f"Worker ID {worker_id} is out of range for {len(RTSP_URLS)} RTSP URLs.")
-
-        if target_url:
-             process_stream(target_url.strip(), redis_client, display_stream_id)
+        process_stream(target_url.strip(), redis_client, display_stream_id)
             
     except ValueError:
         logger.error(f"Could not parse worker ID from hostname: {hostname}. Fallback to processing all streams?")
@@ -204,3 +183,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

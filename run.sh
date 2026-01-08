@@ -1,5 +1,5 @@
 # 0. Delete temp files
-rm -rf /videos/temp_video
+sudo rm -rf videos/temp_video
 
 # 1. Rebuild Images
 docker build -t video-capture:latest -f Dockerfile.capture .
