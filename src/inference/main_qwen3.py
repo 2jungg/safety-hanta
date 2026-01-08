@@ -47,6 +47,8 @@ MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Inst
 CONFIG_DIR = project_root / "configs"
 PROMPTS_DIR = project_root / "prompts"
 MAX_BATCH_SIZE = 20
+MIN_BATCH_SIZE = int(os.getenv("MIN_BATCH_SIZE", 1))
+BATCH_TIMEOUT = float(os.getenv("BATCH_TIMEOUT", 1.0))
 
 # Pipeline Configuration
 PREPARED_QUEUE_SIZE = 1
@@ -79,7 +81,7 @@ def setup_model():
             model=MODEL_PATH,
             limit_mm_per_prompt={"video": 1},
             enable_prefix_caching=False,
-            gpu_memory_utilization=float(os.getenv("GPU_MEMORY_UTILIZATION", 0.3)),
+            gpu_memory_utilization=float(os.getenv("GPU_MEMORY_UTILIZATION", 0.6)),
             trust_remote_code=True,
         )
     except Exception as e:
@@ -133,6 +135,7 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
     while True:
         # Prepare batch of valid items
         batch_data = []
+        start_wait_time = None
         
         # 1. Fetch Loop
         while len(batch_data) < MAX_BATCH_SIZE:
@@ -142,12 +145,21 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                 if not item:
                     continue # Try again
                 data_json = item[1]
+                start_wait_time = time.time() # Start timeout timer after first item
             else:
                 # Non-blocking pop for subsequent items
                 data_json = redis_client.lpop(QUEUE_NAME)
+                
                 if not data_json:
-                    # If queue is empty but we have some items, check if we should wait or process
-                    break 
+                    # Check if we should wait more or break
+                    if len(batch_data) < MIN_BATCH_SIZE:
+                        # Check timeout
+                        if time.time() - start_wait_time > BATCH_TIMEOUT:
+                            break
+                        time.sleep(0.01) # Short sleep to avoid busy wait
+                        continue
+                    else:
+                        break
             
             # 2. Validation & Filtering Loop
             try:
@@ -230,8 +242,6 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                         return_video_metadata=True,
                         image_patch_size=image_patch_size
                     )
-                    end_process = time.time()
-                    print(f"[Preparer] Video {stream_id} processed in {end_process - start_process:.4f}s")
                     
                     # Optimization: Pin memory to speed up transfer (Unified Memory optimization)
                     # We do NOT move to CUDA here because VLLM/HF requires CPU inputs (conversion to numpy).
@@ -266,7 +276,7 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
             if llm_inputs_batch:
                 # Put ready batch into queue
                 output_queue.put((llm_inputs_batch, original_payloads, temp_files))
-                print(f"[Preparer] Batch enqueued. Queue size: {output_queue.qsize()}. Total processing time: {time.time() - batch_process_start:.4f}s")
+                print(f"[Preparer] Batch enqueued. Queue size: {output_queue.qsize()}")
             else:
                  # If all failed, clean up immediately
                  for p in temp_files:
@@ -309,13 +319,11 @@ def main():
         # Get ready batch from queue
         try:
             # Blocking get
-            wait_start = time.time()
             llm_inputs_batch, original_payloads, temp_files = batch_queue.get()
-            print(f"[Main] Waited {time.time() - wait_start:.4f}s for next batch.")
             
             print(f"[Main] Processing batch of {len(llm_inputs_batch)} on GPU...")
             
-            # Generate (GPU)z
+            # Generate (GPU)
             gen_start = time.time()
             outputs = llm.generate(llm_inputs_batch, sampling_params=sampling_params)
             print(f"[Main] GPU Inference time: {time.time() - gen_start:.4f}s")
@@ -325,10 +333,10 @@ def main():
                 output_text = output.outputs[0].text
                 stream_id = original_payloads[i].get("stream_id")
                 
-                # print("--- Analysis Result ---")
-                # print(f"Stream: {stream_id}")
-                # print(output_text)
-                # print("-----------------------")
+                print("--- Analysis Result ---")
+                print(f"Stream: {stream_id}")
+                print(output_text)
+                print("-----------------------")
             
             # Cleanup
             print("[Main] Cleaning up temp files...")

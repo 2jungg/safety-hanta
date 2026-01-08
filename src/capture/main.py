@@ -12,7 +12,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 RTSP_URLS = os.getenv("RTSP_URLS", "").split(",")
 QUEUE_NAME = "video_stream_queue"
-BUFFER_DURATION = 15.0  # seconds
+BUFFER_DURATION = float(os.getenv("BUFFER_DURATION", "10"))  # seconds
 TEMP_VIDEO_DIR = "/videos/temp_video"
 
 # Ensure temp dir exists
@@ -28,12 +28,12 @@ def get_redis_client():
         logger.error(f"Failed to connect to Redis: {e}")
         return None
 
-def process_stream(stream_url, redis_client):
+def process_stream(stream_url, redis_client, display_stream_id):
     """
     Captures video from stream_url, buffers for BUFFER_DURATION, 
     encodes to mp4, and pushes to Redis.
     """
-    stream_id = stream_url.split("/")[-1] # Simple ID derivation
+    stream_id = display_stream_id # Use the provided display_stream_id
     logger.info(f"Starting capture for {stream_id} ({stream_url})")
     
     cap = None
@@ -174,7 +174,8 @@ def main():
             
             cam_index = worker_id 
             target_url = f"{rtsp_base_url}{cam_index-1}/media.smp"
-            logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url}")
+            display_stream_id = f"cam{cam_index-1}" # Custom ID for display
+            logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url} with display ID: {display_stream_id}")
             
         else:
             # Legacy Mode (Fixed List)
@@ -182,12 +183,13 @@ def main():
             url_index = worker_id - 1
             if 0 <= url_index < len(RTSP_URLS):
                 target_url = RTSP_URLS[url_index]
-                logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Legacy List Index: {url_index}")
+                display_stream_id = f"cam{url_index}" # Custom ID for display, consistent with dynamic mode
+                logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Legacy List Index: {url_index} with display ID: {display_stream_id}")
             else:
                  logger.error(f"Worker ID {worker_id} is out of range for {len(RTSP_URLS)} RTSP URLs.")
 
         if target_url:
-             process_stream(target_url.strip(), redis_client)
+             process_stream(target_url.strip(), redis_client, display_stream_id)
             
     except ValueError:
         logger.error(f"Could not parse worker ID from hostname: {hostname}. Fallback to processing all streams?")

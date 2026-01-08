@@ -43,6 +43,8 @@ spec:
               value: "6379"
             - name: RTSP_BASE_URL
               value: "rtsp://admin:hanta123$@202.31.34.211:558/LiveChannel/"
+            - name: BUFFER_DURATION
+              value: "2"
           volumeMounts:
             - name: shm
               mountPath: /dev/shm
