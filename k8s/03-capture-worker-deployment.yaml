@@ -61,5 +61,5 @@ spec:
             type: Directory
         - name: src-volume
           hostPath:
-            path: /home/jungg/workspace/safety-hanta/src/capture
+            path: /src_host/capture
             type: Directory
