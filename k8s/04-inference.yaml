@@ -18,6 +18,10 @@ spec:
     spec:
       nodeSelector:
         role: inference
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
 
       containers:
       - name: inference
@@ -29,11 +33,13 @@ spec:
         command: ["python3", "-u", "src/inference/main_qwen3.py"]
         env:
         - name: MODEL_PATH
-          value: "/models/Qwen3-VL-4B-Instruct-NVFP4"
+          value: "/models/Qwen3-VL-2B-Instruct-NVFP4"
         - name: GPU_MEMORY_UTILIZATION
           value: "0.8"
         - name: LD_LIBRARY_PATH
-          value: "/usr/lib/aarch64-linux-gnu:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
+          value: "/usr/lib/wsl/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
+        - name: MAX_MODEL_LEN
+          value: "4000"   # Extremely Short Length
         - name: REDIS_HOST
           value: "redis-service"
         - name: REDIS_PORT
@@ -41,7 +47,7 @@ spec:
         - name: MIN_BATCH_SIZE
           value: "3"
         - name: BATCH_TIMEOUT
-          value: "1.0"
+          value: "5.0"
         volumeMounts:
         - name: model-volume
           mountPath: /models
@@ -49,6 +55,17 @@ spec:
           mountPath: /videos
         - name: src-volume
           mountPath: /app/src/inference
+        - name: wsl-lib
+          mountPath: /usr/lib/wsl/lib
+          readOnly: true
+        - name: wsl-drivers
+          mountPath: /usr/lib/wsl/drivers
+          readOnly: true
+        - name: dxg
+          mountPath: /dev/dxg
+          readOnly: true
+        securityContext:
+          privileged: true
       volumes:
       - name: videos-volume
         hostPath:
@@ -62,3 +79,15 @@ spec:
         hostPath:
           path: /models
           type: Directory
+      - name: wsl-lib
+        hostPath:
+          path: /usr/lib/wsl/lib
+          type: Directory
+      - name: wsl-drivers
+        hostPath:
+          path: /usr/lib/wsl/drivers
+          type: Directory
+      - name: dxg
+        hostPath:
+          path: /dev/dxg
+          type: CharDevice

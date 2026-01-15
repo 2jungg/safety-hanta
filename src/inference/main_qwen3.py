@@ -82,6 +82,7 @@ def setup_model():
             limit_mm_per_prompt={"video": 1},
             enable_prefix_caching=False,
             gpu_memory_utilization=float(os.getenv("GPU_MEMORY_UTILIZATION", 0.6)),
+            max_model_len=int(os.getenv("MAX_MODEL_LEN", 16384)),
             trust_remote_code=True,
         )
     except Exception as e:

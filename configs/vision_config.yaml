@@ -24,4 +24,5 @@
 fps: 4
 # Maximum number of pixels per video
 # 6422528 = 8192 * 28**2 = vision_tokens * (2*spatial_patch_size)^2
-total_pixels: 6422528
+# total_pixels: 6422528
+total_pixels: 401408

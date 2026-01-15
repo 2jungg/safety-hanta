@@ -1,14 +1,6 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 
-# Register NVIDIA runtime for GPU pods
-containerdConfigPatches:
-- |-
-    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
-      runtime_type = "io.containerd.runc.v2"
-    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
-      BinaryName = "/usr/bin/nvidia-container-runtime"
-
 nodes:
   - role: control-plane
 
@@ -17,9 +9,9 @@ nodes:
     labels:
       role: capture
     extraMounts:
-      - hostPath: C:/Users/HANTA/Documents/safety-hanta/videos
+      - hostPath: /home/hanta/safety-hanta/videos
         containerPath: /videos
-      - hostPath: C:/Users/HANTA/Documents/safety-hanta/src
+      - hostPath: /home/hanta/safety-hanta/src
         containerPath: /src_host
 
   # Inference worker (GPU node)
@@ -28,17 +20,25 @@ nodes:
       role: inference
       accelerator: nvidia-gpu
     extraMounts:
-      - hostPath: C:/Users/HANTA/Documents/safety-hanta/videos
+      - hostPath: /home/hanta/safety-hanta/videos
         containerPath: /videos
-      - hostPath: C:/Users/HANTA/Documents/safety-hanta/models
+      - hostPath: /home/hanta/safety-hanta/models
         containerPath: /models
-      - hostPath: C:/Users/HANTA/Documents/safety-hanta/src
+      - hostPath: /home/hanta/safety-hanta/src
         containerPath: /src_host
+      - hostPath: /run/nvidia
+        containerPath: /run/nvidia
+      - hostPath: /usr/lib/wsl/lib
+        containerPath: /usr/lib/wsl/lib
+      - hostPath: /usr/lib/wsl/drivers
+        containerPath: /usr/lib/wsl/drivers
+      - hostPath: /dev
+        containerPath: /dev
 
   # Generic worker (can host Redis, RTSP‑sim, etc.)
   - role: worker
     labels:
       role: simulation
     extraMounts:
-      - hostPath: C:/Users/HANTA/Documents/safety-hanta/videos
+      - hostPath: /home/hanta/safety-hanta/videos
         containerPath: /videos
