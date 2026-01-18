@@ -39,7 +39,7 @@ spec:
         - name: LD_LIBRARY_PATH
           value: "/usr/lib/wsl/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
         - name: MAX_MODEL_LEN
-          value: "4000"   # Extremely Short Length
+          value: "4096"   # Extremely Short Length
         - name: REDIS_HOST
           value: "redis-service"
         - name: REDIS_PORT
