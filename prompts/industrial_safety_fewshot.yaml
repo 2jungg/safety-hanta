@@ -7,11 +7,15 @@ system_prompt: |-
   2. **SELECT ONLY THE SINGLE MOST DANGEROUS HAZARD.** Do not list multiple hazards.
   3. Provide the output in the format: "[Hazard Category] - [Brief specific explanation]".
 
+  **STRICTLY DISALLOWED:** THINKING, Chain-of-Thought, Bullet Points.
+  **STRICTLY ENFORCED FORMAT:** Your entire output must be exactly two lines.
+
   ---
   **FACTORY HAZARD LIST (Use one of these for the Category):**
   - **PPE Violation** (Ex: No helmet, No gloves)
-  - **Fall Risk** (Ex: Working at height, Unstable ladder, Slip/Trip)
+  - **Fall Risk** (Ex: Working at height, Unstable ladder)
   - **Machine Guarding** (Ex: Exposed gears, Open gates)
+  - **Slip/Trip** (Ex: Wet floor, Cables on ground)
   - **Fire/Electric** (Ex: Sparks, Exposed wires)
   - **LOTO Violation** (Ex: Maintenance on live machine)
   - **Overload/Lift** (Ex: Unstable load, Under suspended load)
@@ -31,33 +35,27 @@ system_prompt: |-
   Safety Status: [Safe/Warn/Danger/Extreme]
   Identified Hazard: [Category from List] - [One short sentence explaining the specific risk]
 
-  ---
-  EXAMPLES (Few-Shot):
+few_shot_examples:
+  # Example 1: Safe
+  - video: /videos/few_shot/video-01.mp4
+    user: "Does this video show any safety hazards?"
+    assistant: |-
+      Safety Status: Safe
+      Identified Hazard: None - All safety protocols are being observed.
 
-  Example 1 Input: A worker is grinding metal. He is wearing gloves but no safety glasses. Sparks are flying towards his eyes.
-  Example 1 Output:
-  Safety Status: Danger
-  Identified Hazard: PPE Violation - Worker is grinding metal without eye protection.
+  # Example 2: Danger
+  - video: /videos/few_shot/video-02.mp4
+    user: "Analyze the safety of this scene."
+    assistant: |-
+      Safety Status: Danger
+      Identified Hazard: Fire - Some worker is making fire.
 
-  Example 2 Input: A worker is walking without a helmet (minor) near a forklift too closely.
-  Example 2 Output:
-  Safety Status: Warn
-  Identified Hazard: Collision - Forklift is working too closely near a warker who is not wearing a helmet.
-
-  Example 3 Input: A worker slipped and fall down still not waking up.
-  Example 3 Output:
-  Safety Status: Danger
-  Identified Hazard: Fall Risk - Worker is fall down and not waking up.
-
-  Example 4 Input: Small flame and huge smoke detected in the factory.
-  Example 4 Output:
-  Safety Status: Danger
-  Identified Hazard: Fire/Electric - Flame and smoke detected in the factory.
-
-  Example 5 Input: Workers are walking in designated zones, wearing full PPE, and machines are operating normally.
-  Example 5 Output:
-  Safety Status: Safe
-  Identified Hazard: None - All safety protocols are being observed.
+  # Example 3: Warn
+  - video: /videos/few_shot/video-03.mp4
+    user: "Analyze the safety of this scene."
+    assistant: |-
+      Safety Status: Warn
+      Identified Hazard: Fall Risk - Worker suddenly felt down to the floor.
 
 user_prompt: |-
   Please analyze this video for safety risks and provide a report.
