@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logic-service
+  labels:
+    app: logic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logic
+  template:
+    metadata:
+      labels:
+        app: logic
+    spec:
+      nodeSelector:
+        logic_node: "true"
+      containers:
+      - name: logic
+        image: video-capture:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "-u", "src/logic/main.py"]
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        volumeMounts:
+        - name: videos-volume
+          mountPath: /videos
+        - name: src-volume
+          mountPath: /app/src/logic
+      volumes:
+      - name: videos-volume
+        hostPath:
+          path: /videos
+          type: Directory
+      - name: src-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/src/logic
+          type: Directory

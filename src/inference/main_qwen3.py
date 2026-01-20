@@ -137,6 +137,19 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
         batch_data = []
         start_wait_time = None
         
+        # [OPTIMIZATION] Backlog Clearing (Freshness First)
+        # If queue is too long, we drop old items to process only the latest.
+        try:
+            q_len = redis_client.llen(QUEUE_NAME)
+            if q_len > MAX_BATCH_SIZE * 2:
+                # Keep only the last MAX_BATCH_SIZE items (Newest)
+                # Redis List: [Oldest, ..., Newest]
+                # LTRIM key -N -1 keeps the tail.
+                redis_client.ltrim(QUEUE_NAME, -MAX_BATCH_SIZE, -1)
+                print(f"[Preparer] Queue backlog ({q_len}) detected. Trimmed to latest {MAX_BATCH_SIZE}.")
+        except Exception as e:
+            print(f"Error checking/trimming queue: {e}")
+
         # 1. Fetch Loop
         while len(batch_data) < MAX_BATCH_SIZE:
             if len(batch_data) == 0:
@@ -216,11 +229,43 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                     start_str = start_dt.strftime('%Y-%m-%d %H:%M:%S')
                     end_str = end_dt.strftime('%Y-%m-%d %H:%M:%S')
                     
-                    # Store file path for cleanup later
+                    # Store file path for passthrough (Deletion handled by Capture Service now)
                     temp_files.append(video_path)
                     
-                    # Inject Metadata into Prompt
-                    current_user_prompt = f"[Camera Source: {stream_id} | Time: {start_str} ~ {end_str}]\n{user_prompt}"
+                    # ---------------------------------------------------------
+                    # [NEW] Context Injection from Redis
+                    # ---------------------------------------------------------
+                    context_history = ""
+                    try:
+                        # Fetch last 3 summaries from Channel_History
+                        # Key: channel_history:{stream_id}
+                        history_key = f"channel_history:{stream_id}"
+                        recent_logs = redis_client.lrange(history_key, 0, 2)
+                        if recent_logs:
+                            context_lines = []
+                            for log_bytes in reversed(recent_logs): # Oldest first
+                                if isinstance(log_bytes, bytes):
+                                    log_str = log_bytes.decode('utf-8')
+                                    context_lines.append(log_str)
+                            
+                            if context_lines:
+                                context_history = "\n[Recent Context]\n" + "\n".join(context_lines) + "\n"
+                    except Exception as e:
+                        print(f"Failed to fetch context: {e}")
+                    
+                    # Inject Context into User Prompt (Clarified)
+                    # We explicitly tell the model that context is historical and it must focus on the CURRENT video.
+                    current_user_prompt = f"""
+[Historical Context (For Reference Only)]
+{context_history}
+--------------------------------------------------
+[CURRENT TASK]
+Analyze the provided video clip (Current Situation).
+The Context above is just history. Do NOT assume the hazard still exists unless you see it in the video.
+Focus ONLY on what is visible in the video stream currently.
+[Camera Source: {stream_id} | Time: {start_str} ~ {end_str}]
+{user_prompt}
+"""
                     
                     conversation = create_conversation(
                         system_prompt=system_prompt,
@@ -244,7 +289,6 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                     )
                     
                     # Optimization: Pin memory to speed up transfer (Unified Memory optimization)
-                    # We do NOT move to CUDA here because VLLM/HF requires CPU inputs (conversion to numpy).
                     if video_inputs is not None:
                         video_inputs = pin_memory_recursive(video_inputs)
 
@@ -278,11 +322,7 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                 output_queue.put((llm_inputs_batch, original_payloads, temp_files))
                 print(f"[Preparer] Batch enqueued. Queue size: {output_queue.qsize()}")
             else:
-                 # If all failed, clean up immediately
-                 for p in temp_files:
-                    try:
-                        if os.path.exists(p): os.remove(p)
-                    except: pass
+                 pass
                     
         except Exception as e:
             print(f"[Preparer] Critical Error: {e}")
@@ -315,6 +355,10 @@ def main():
     
     print("Inference Main Loop Started (Consuming Batches)...")
     
+    # Redis for Output
+    output_redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+    OUTPUT_STREAM_KEY = "vlm_inference_stream"
+
     while True:
         # Get ready batch from queue
         try:
@@ -331,21 +375,32 @@ def main():
             # Process outputs
             for i, output in enumerate(outputs):
                 output_text = output.outputs[0].text
-                stream_id = original_payloads[i].get("stream_id")
+                input_payload = original_payloads[i]
+                stream_id = input_payload.get("stream_id")
+                timestamp = input_payload.get("timestamp")
+                video_path = input_payload.get("video_path")
                 
                 print("--- Analysis Result ---")
                 print(f"Stream: {stream_id}")
                 print(output_text)
                 print("-----------------------")
-            
-            # Cleanup
-            print("[Main] Cleaning up temp files...")
-            for p in temp_files:
+                
+                # Publish to Redis Stream
                 try:
-                    if os.path.exists(p):
-                        os.remove(p)
+                    event_data = {
+                        "stream_id": stream_id,
+                        "timestamp": timestamp,
+                        "vlm_output": output_text,
+                        "video_path": video_path,
+                        "processed_at": time.time()
+                    }
+                    output_redis.xadd(OUTPUT_STREAM_KEY, event_data)
                 except Exception as e:
-                    print(f"Error cleaning up {p}: {e}")
+                    print(f"Error publishing to Redis Stream: {e}")
+
+            # Cleanup
+            # [MODIFIED] Do NOT delete temp files here. Retention is handled by Capture Service.
+            # print("[Main] Cleaning up temp files... (SKIPPED - Handled by Capture Service)")
                     
         except KeyboardInterrupt:
             break

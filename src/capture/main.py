@@ -28,6 +28,50 @@ def get_redis_client():
         logger.error(f"Failed to connect to Redis: {e}")
         return None
 
+def cleanup_old_files(directory, retention_seconds):
+    """
+    Background thread to delete files older than retention_seconds.
+    """
+    logger.info(f"Retention policy started: keeping files for {retention_seconds}s")
+    while True:
+        try:
+            now = time.time()
+            for filename in os.listdir(directory):
+                file_path = os.path.join(directory, filename)
+                if not filename.endswith(".mp4"):
+                    continue
+                    
+                # Try to parse timestamp from filename first
+                # Format: {stream_id}_{timestamp}_{duration}.mp4
+                try:
+                    parts = filename.replace(".mp4", "").split("_")
+                    # Last part is duration, second to last is timestamp? 
+                    # Naming: cam0_1700000000_2.0.mp4
+                    # parts: ['cam0', '1700000000', '2.0']
+                    # Be careful if stream_id has underscores.
+                    # Best to assume last two parts are timestamp and duration.
+                    if len(parts) >= 3:
+                        file_ts = float(parts[-2])
+                        if now - file_ts > retention_seconds:
+                            os.remove(file_path)
+                            # logger.debug(f"Deleted old file: {filename}")
+                            continue
+                except Exception:
+                    # Fallback to file mtime
+                    pass
+                
+                # Mtime fallback
+                if os.path.isfile(file_path):
+                    mtime = os.path.getmtime(file_path)
+                    if now - mtime > retention_seconds:
+                        os.remove(file_path)
+                        # logger.debug(f"Deleted old file (mtime): {filename}")
+                        
+        except Exception as e:
+            logger.error(f"Error in cleanup thread: {e}")
+        
+        time.sleep(10)
+
 def process_stream(stream_url, redis_client, display_stream_id):
     """
     Captures video from stream_url, buffers for BUFFER_DURATION, 
@@ -59,10 +103,14 @@ def process_stream(stream_url, redis_client, display_stream_id):
     frame_count = 0
     
     # Setup initial VideoWriter
-    filename = f"{stream_id}_{uuid.uuid4()}.mp4"
-    file_path = os.path.join(TEMP_VIDEO_DIR, filename)
+    # New Naming: {stream_id}_{timestamp}_{duration}.mp4
+    # But we don't know duration yet! 
+    # Logic: Write to a temp name, then rename on close.
+    temp_filename = f"{stream_id}_recording_{uuid.uuid4()}.mp4"
+    temp_file_path = os.path.join(TEMP_VIDEO_DIR, temp_filename)
+    
     fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
-    out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
+    out = cv2.VideoWriter(temp_file_path, fourcc, fps, (width, height))
     
     while True:
         ret, frame = cap.read()
@@ -72,9 +120,9 @@ def process_stream(stream_url, redis_client, display_stream_id):
             # Close partial file and delete to avoid corruption
             if out:
                 out.release()
-            if os.path.exists(file_path):
+            if os.path.exists(temp_file_path):
                 try:
-                    os.remove(file_path)
+                    os.remove(temp_file_path)
                 except OSError:
                     pass
             
@@ -83,14 +131,14 @@ def process_stream(stream_url, redis_client, display_stream_id):
             
             # Attempt to reconnect
             cap = cv2.VideoCapture(stream_url)
-            # If cap isn't opened immediately, the next read() will fail and we loop again. This is fine.
+            # If cap isn't opened immediately, the next read() will fail and we loop again.
             
             # Reset chunk state
             start_time = time.time()
             frame_count = 0
-            filename = f"{stream_id}_{uuid.uuid4()}.mp4"
-            file_path = os.path.join(TEMP_VIDEO_DIR, filename)
-            out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
+            temp_filename = f"{stream_id}_recording_{uuid.uuid4()}.mp4"
+            temp_file_path = os.path.join(TEMP_VIDEO_DIR, temp_filename)
+            out = cv2.VideoWriter(temp_file_path, fourcc, fps, (width, height))
             continue
         
         # Write frame immediately
@@ -104,34 +152,39 @@ def process_stream(stream_url, redis_client, display_stream_id):
             # Finalize current chunk
             out.release()
             
+            final_filename = f"{stream_id}_{start_time:.3f}_{elapsed:.2f}.mp4"
+            final_file_path = os.path.join(TEMP_VIDEO_DIR, final_filename)
+            
             if frame_count > 0:
                 try:
+                    # Rename to final format
+                    os.rename(temp_file_path, final_file_path)
+                    
                     # Send payload
                     payload = {
                         "stream_id": stream_id,
                         "timestamp": start_time,
                         "duration": elapsed,
-                        "video_path": file_path
+                        "video_path": final_file_path
                     }
                     if redis_client:
                         redis_client.rpush(QUEUE_NAME, json.dumps(payload))
-                        logger.info(f"Pushed {elapsed:.2f}s ({frame_count} frames) from {stream_id} to Redis.")
+                        logger.info(f"Pushed {elapsed:.2f}s from {stream_id} to Redis. File: {final_filename}")
                 except Exception as e:
                     logger.error(f"Error processing chunk: {e}")
+                    if os.path.exists(temp_file_path):
+                        os.remove(temp_file_path)
             else:
                  # Empty chunk?
-                 if os.path.exists(file_path):
-                    os.remove(file_path)
+                 if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
             
             # Start next chunk
             start_time = time.time()
             frame_count = 0
-            filename = f"{stream_id}_{uuid.uuid4()}.mp4"
-            file_path = os.path.join(TEMP_VIDEO_DIR, filename)
-            out = cv2.VideoWriter(file_path, fourcc, fps, (width, height))
-            
-        # Optional: Sleep to prevent tight loop if FPS is high? 
-        # Actually cv2.read() is blocking usually based on stream FPS.
+            temp_filename = f"{stream_id}_recording_{uuid.uuid4()}.mp4"
+            temp_file_path = os.path.join(TEMP_VIDEO_DIR, temp_filename)
+            out = cv2.VideoWriter(temp_file_path, fourcc, fps, (width, height))
         
 def main():
     logger.info("Streamer service starting...")
@@ -151,6 +204,10 @@ def main():
     # Sharding Logic: Process ONLY the stream corresponding to this worker's index
     hostname = os.getenv("HOSTNAME", "capture-worker-1")
     rtsp_base_url = os.getenv("RTSP_BASE_URL") # e.g., "rtsp://service:8554/cam"
+    
+    # Start Retention Thread
+    retention_thread = threading.Thread(target=cleanup_old_files, args=(TEMP_VIDEO_DIR, 600), daemon=True)
+    retention_thread.start()
     
     try:
         # Expected hostname format: capture-worker-{index}
