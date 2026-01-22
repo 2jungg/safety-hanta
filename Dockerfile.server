@@ -43,7 +43,8 @@ RUN uv pip install --break-system-packages \
   "rich" \
   "transformers>=4.57.0" \
   "redis" \
-  "opencv-python"
+  "opencv-python" \
+  "numpy<2.4"
 
 # Step 2: Build and install torchcodec from source for aarch64 compatibility
 # (Kept from original, assuming it's needed/useful)
