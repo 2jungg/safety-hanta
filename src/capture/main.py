@@ -7,6 +7,9 @@ import uuid
 import json
 import logging
 
+# Set RTSP transport to TCP
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+
 # Configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
@@ -165,21 +168,14 @@ def main():
         target_url = None
         
         if rtsp_base_url:
-            # Dynamic Mode
-            # If pods are worker-0, worker-1... corresponding to cam1, cam2...
-            # Then cam_index = worker_id + 1
-            # Adjust mapping as needed. Let's assume 1-based mapping for cameras.
-            # If using StatefulSet with start ordinal 1 (as seen in yaml: ordinals: start: 1)
-            # Then worker-1 -> cam1.
-            
+            # RTSP BASE URL이 공통일 때 다이나믹하게 할당            
             cam_index = worker_id 
             target_url = f"{rtsp_base_url}{cam_index-1}/media.smp"
             display_stream_id = f"cam{cam_index-1}" # Custom ID for display
             logger.info(f"Worker {hostname} (ID: {worker_id}) assigned to Dynamic URL: {target_url} with display ID: {display_stream_id}")
             
         else:
-            # Legacy Mode (Fixed List)
-            # capture-worker-1 -> index 0
+            # RTSP URL 리스트로 직접 넣어주는 방식
             url_index = worker_id - 1
             if 0 <= url_index < len(RTSP_URLS):
                 target_url = RTSP_URLS[url_index]
