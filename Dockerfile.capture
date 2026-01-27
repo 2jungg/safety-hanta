@@ -12,4 +12,4 @@ WORKDIR /app
 # Copy only necessary files
 
 # Install Python dependencies required by the streamer
-RUN pip install --no-cache-dir redis opencv-python
+RUN pip install --no-cache-dir redis opencv-python requests

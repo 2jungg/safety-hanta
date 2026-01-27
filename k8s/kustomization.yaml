@@ -9,3 +9,6 @@ resources:
   - nvidia-runtime-class.yaml
   - nvidia-device-plugin.yaml
   - sysctl-fix.yaml
+  - 05-logic.yaml
+  - 06-notification.yaml
+  - 07-dashboard.yaml
