@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-service
+spec:
+  selector:
+    app: dashboard
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+      nodePort: 30007
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-service
+  labels:
+    app: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      nodeSelector:
+        dashboard_node: "true"
+      containers:
+      - name: dashboard
+        image: video-capture:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/sh", "-c", "pip install fastapi uvicorn Jinja2 && python3 src/dashboard/main.py"]
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: videos-volume
+          mountPath: /videos
+        - name: src-volume
+          mountPath: /app/src/dashboard
+      volumes:
+      - name: videos-volume
+        hostPath:
+          path: /videos
+          type: Directory
+      - name: src-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/src/dashboard
+          type: Directory

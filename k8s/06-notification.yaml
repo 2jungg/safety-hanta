@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app: notification
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification
+  template:
+    metadata:
+      labels:
+        app: notification
+    spec:
+      nodeSelector:
+        notification_node: "true"
+      containers:
+      - name: notification
+        image: video-capture:latest
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "-u", "src/notification/main.py"]
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        envFrom:
+        - secretRef:
+            name: telegram-secret
+        volumeMounts:
+        - name: src-volume
+          mountPath: /app/src/notification
+        - name: videos-volume
+          mountPath: /videos
+      volumes:
+      - name: src-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/src/notification
+          type: Directory
+      - name: videos-volume
+        hostPath:
+          path: /videos
+          type: Directory

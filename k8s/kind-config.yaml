@@ -56,8 +56,13 @@ nodes:
   - role: worker
     labels:
       role: simulation
+      logic_node: "true"
+      notification_node: "true"
+      dashboard_node: "true"
     extraMounts:
       - hostPath: /dev
         containerPath: /dev
       - hostPath: /home/jungg/workspace/safety-hanta/videos
         containerPath: /videos
+      - hostPath: /home/jungg/workspace/safety-hanta/src
+        containerPath: /home/jungg/workspace/safety-hanta/src

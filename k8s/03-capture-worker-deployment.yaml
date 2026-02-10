@@ -18,7 +18,7 @@ metadata:
   name: capture-worker
 spec:
   serviceName: "capture-worker"
-  replicas: 3
+  replicas: 8
   ordinals:
     start: 1
   selector:
@@ -42,9 +42,9 @@ spec:
             - name: REDIS_PORT
               value: "6379"
             - name: RTSP_BASE_URL
-              value: "rtsp://admin:hanta123$@202.31.34.211:558/LiveChannel/"
+              value: "rtsp://admin:hankook2580@172.18.0.1:8558/LiveChannel/" # rtsp://[ID]:[PW]@[IP]:[PORT]/LiveChannel//
             - name: BUFFER_DURATION
-              value: "2"
+              value: "10"
           volumeMounts:
             - name: shm
               mountPath: /dev/shm
@@ -53,13 +53,13 @@ spec:
             - name: src-volume
               mountPath: /app/src/capture
       volumes:
-        - name: shm
-          emptyDir: {}
-        - name: videos-volume
-          hostPath:
-            path: /videos
-            type: Directory
-        - name: src-volume
-          hostPath:
-            path: /home/jungg/workspace/safety-hanta/src/capture
-            type: Directory
+      - name: shm
+        emptyDir: {}
+      - name: videos-volume
+        hostPath:
+          path: /videos
+          type: Directory
+      - name: src-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/src/capture
+          type: Directory

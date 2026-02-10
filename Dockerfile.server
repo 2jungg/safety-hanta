@@ -38,6 +38,7 @@ COPY qwen2_5_vl.py .
 RUN uv pip install --break-system-packages \
   --system \
   "accelerate>=1.10.1" \
+  "numpy<2.4" \
   "pyyaml>=6.0.2" \
   "qwen-vl-utils>=0.0.14" \
   "rich" \

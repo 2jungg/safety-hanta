@@ -61,8 +61,8 @@ def setup_model():
     sampling_kwargs = yaml.safe_load(open(CONFIG_DIR / "sampling_params.yaml", "rb"))
     sampling_params = vllm.SamplingParams(**sampling_kwargs)
     
-    print(f"Loading Prompt Config from {PROMPTS_DIR}/industrial_safety_short.yaml")
-    prompt_kwargs = yaml.safe_load(open(PROMPTS_DIR / "industrial_safety_short.yaml", "rb"))
+    print(f"Loading Prompt Config from {PROMPTS_DIR}/industrial_safety_reasoning.yaml")
+    prompt_kwargs = yaml.safe_load(open(PROMPTS_DIR / "industrial_safety_reasoning.yaml", "rb"))
     prompt_config = PromptConfig.model_validate(prompt_kwargs)
     
     # System Prompt construction
@@ -257,17 +257,9 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
                     # Inject Context into User Prompt (Clarified)
                     # We explicitly tell the model that context is historical and it must focus on the CURRENT video.
                     current_user_prompt = f"""
-[Historical Context (For Reference Only)]
-{context_history}
---------------------------------------------------
-[CURRENT TASK]
-Analyze the provided video clip (Current Situation).
-The Context above is just history. Do NOT assume the hazard still exists unless you see it in the video.
-Focus ONLY on what is visible in the video stream currently.
-[Camera Source: {stream_id} | Time: {start_str} ~ {end_str}]
-{user_prompt}
-"""
-                    
+                                            Analyze the provided video clip.
+                                            {user_prompt}
+                                           """
                     conversation = create_conversation(
                         system_prompt=system_prompt,
                         user_prompt=current_user_prompt,
@@ -381,9 +373,25 @@ def main():
                 timestamp = input_payload.get("timestamp")
                 video_path = input_payload.get("video_path")
                 
+                # [NEW] Parse Reasoning & Answer
+                # format: <think>...</think><answer>...</answer>
+                extracted, _ = extract_tagged_text(output_text)
+                
+                # Extract first occurrence of each tag
+                reasoning_list = extracted.get("think", [])
+                reasoning = reasoning_list[0].strip() if reasoning_list else ""
+                
+                answer_list = extracted.get("answer", [])
+                final_answer = answer_list[0].strip() if answer_list else ""
+                
+                # Fallback if tags are missing (legacy support or failure)
+                if not final_answer:
+                    final_answer = output_text
+
                 print("--- Analysis Result ---")
                 print(f"Stream: {stream_id}")
-                print(output_text)
+                print(f"[Reasoning]: {reasoning[:100]}...")
+                print(f"[Answer]: {final_answer}")
                 print("-----------------------")
                 
                 # Publish to Redis Stream
@@ -391,7 +399,8 @@ def main():
                     event_data = {
                         "stream_id": stream_id,
                         "timestamp": timestamp,
-                        "vlm_output": output_text,
+                        "vlm_output": final_answer,
+                        "vlm_reasoning": reasoning,
                         "video_path": video_path,
                         "processed_at": time.time()
                     }
