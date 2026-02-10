@@ -1,164 +1,139 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Safety Hanta Dashboard</title>
+    <title>Safety Command Center</title>
     <!-- Tailwind via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
-        .glass {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+
+<body class="h-screen flex flex-col">
+
+    <!-- Emergency Overlay -->
+    <div id="emergency-overlay"></div>
+
+    <!-- Alert Detail Modal -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <span id="modal-close" class="close-btn">&times;</span>
+            <div class="bg-black aspect-video relative">
+                <video id="modal-player" controls class="w-full h-full object-contain">
+                    <source id="modal-source" src="" type="video/mp4">
+                </video>
+            </div>
+            <div class="p-6">
+                <h2 id="modal-title" class="text-2xl font-bold font-mono mb-2">ALERT DETAIL</h2>
+                <div id="modal-meta" class="text-gray-400 font-mono text-xs mb-4 border-b border-gray-700 pb-2">TIME:
+                    --:--:-- | CAM: --</div>
+                <p id="modal-desc" class="text-gray-300">Description here...</p>
+                <div class="mt-4 bg-slate-900 p-3 rounded text-xs font-mono text-gray-500">
+                    AI ANALYSIS LOG: <span id="modal-log">--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Header -->
-    <header class="glass p-4 flex justify-between items-center z-10">
-        <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">
-            🛡️ Safety Hanta Monitor
-        </h1>
-        <div class="text-sm text-gray-400" id="clock">--:--:--</div>
+    <header class="glass p-4 flex justify-between items-center z-10 border-b border-white/10">
+        <div class="flex items-center space-x-4">
+            <div class="relative">
+                <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse-green"></div>
+                <div class="absolute top-0 left-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75"></div>
+            </div>
+            <h1 class="text-2xl font-bold font-mono tracking-wider text-white">
+                SAFETY<span class="text-blue-500">HANTA</span> <span class="text-xs text-gray-500 ml-2">v2.0 COMMAND
+                    CENTER</span>
+            </h1>
+        </div>
+
+        <div class="flex items-center space-x-8 font-mono text-sm">
+            <div class="flex flex-col items-end">
+                <span class="text-gray-400 text-xs">SYSTEM STATUS</span>
+                <span class="text-green-400 font-bold">ALL SYSTEMS NOMINAL</span>
+            </div>
+            <div class="flex flex-col items-end">
+                <span class="text-gray-400 text-xs">ACTIVE CAMS</span>
+                <span id="active-cam-count" class="text-blue-400 font-bold text-xl">0</span>
+            </div>
+            <div class="glass px-4 py-2 rounded text-lg font-bold" id="clock">--:--:--</div>
+        </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden p-4 gap-4">
+
         <!-- Sidebar: Cameras -->
-        <aside class="w-64 glass m-4 rounded-xl p-4 flex flex-col space-y-4">
-            <h2 class="text-lg font-semibold text-gray-300">Cameras</h2>
-            <div id="camera-list" class="space-y-2">
-                <!-- Camera Items Injected Here -->
-                <div class="p-3 rounded bg-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-700 transition">
-                    <span>Server Room</span>
-                    <span class="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></span>
-                </div>
+        <aside class="w-72 glass rounded-xl p-4 flex flex-col flex-shrink-0">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-white/5">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest">Connected Feeds</h2>
+                <span class="text-xs bg-blue-900 text-blue-200 px-2 py-0.5 rounded">LIVE</span>
+            </div>
+            <div id="camera-list" class="space-y-2 overflow-y-auto flex-1 pr-2">
+                <!-- Camera Items -->
             </div>
         </aside>
 
         <!-- Main Content: Video Player -->
-        <main class="flex-1 m-4 ml-0 rounded-xl glass flex flex-col items-center justify-center p-6 relative">
-            <div class="w-full max-w-4xl aspect-video bg-black rounded-lg overflow-hidden shadow-2xl relative">
-                <video id="main-player" controls autoplay loop class="w-full h-full object-contain">
-                    <source src="" type="video/mp4">
-                    Select an event to view footage.
-                </video>
-                <div class="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded font-bold hidden" id="live-badge">
-                    ACCIDENT CLIP
+        <main class="flex-1 glass rounded-xl flex flex-col p-1 relative overflow-hidden group">
+
+            <!-- Scanner Effect BG -->
+            <div
+                class="absolute inset-0 bg-[url('https://assets.codepen.io/13471/grid.png')] opacity-10 pointer-events-none">
+            </div>
+
+            <div
+                class="flex-1 flex items-center justify-center relative bg-black/50 rounded-lg overflow-hidden m-4 border border-white/5 shadow-2xl">
+
+                <!-- Empty State -->
+                <div id="empty-state" class="text-center">
+                    <div
+                        class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4">
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-300">SYSTEM SCANNING...</h3>
+                    <p class="text-gray-500 mt-2 font-mono text-sm">Waiting for event triggers</p>
+                    <div class="mt-8 text-xs text-blue-500/50 font-mono">
+                        SCANNING PROTOCOL: ACTIVE<br>
+                        AI INFERENCE: RUNNING<br>
+                        REDIS CONNECTION: ESTABLISHED
+                    </div>
+                </div>
+
+                <!-- Video Player -->
+                <div id="player-container" class="relative w-full h-full hidden">
+                    <video id="main-player" controls class="w-full h-full object-contain">
+                        <source id="video-source" src="" type="video/mp4">
+                    </video>
+                    <div id="live-badge" class="hidden">ACCIDENT FOOTAGE</div>
+
+                    <!-- Scanner Overlay -->
+                    <div class="scanner-overlay opacity-30 group-hover:opacity-10 transition"></div>
                 </div>
             </div>
-            <div class="mt-4 text-left w-full max-w-4xl">
-                <h2 id="video-title" class="text-2xl font-bold text-white">Select an event</h2>
-                <p id="video-desc" class="text-gray-400 mt-1">...</p>
+
+            <!-- Info Panel -->
+            <div
+                class="h-24 glass mx-4 mb-4 rounded-lg p-4 flex flex-col justify-center border-l-4 border-blue-500 bg-black/20">
+                <h2 id="video-title" class="text-xl font-bold text-gray-400 font-mono">AWAITING SIGNAL</h2>
+                <p id="video-desc" class="text-gray-500 text-sm mt-1">Select an event from the timeline to review
+                    footage.</p>
             </div>
         </main>
 
         <!-- Right Panel: Activity Feed -->
-        <aside class="w-96 glass m-4 ml-0 rounded-xl p-4 flex flex-col">
-            <h2 class="text-lg font-semibold text-gray-300 mb-4">Safety Timeline</h2>
-            <div id="event-feed" class="flex-1 overflow-y-auto space-y-3 scrollbar-hide pr-2">
-                <!-- Events Injected Here -->
+        <aside class="w-96 glass rounded-xl p-4 flex flex-col flex-shrink-0">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-white/5">
+                <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest">Alert Timeline</h2>
+                <span class="text-xs text-gray-500">REAL-TIME</span>
+            </div>
+            <div id="event-feed" class="flex-1 overflow-y-auto space-y-1 pr-2 pb-2">
+                <!-- Events -->
             </div>
         </aside>
     </div>
 
-    <script>
-        // Update Clock
-        setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-        }, 1000);
-
-        const cameraList = document.getElementById('camera-list');
-        const eventFeed = document.getElementById('event-feed');
-        const mainPlayer = document.getElementById('main-player');
-        
-        let knownEvents = new Set();
-        let cameras = new Set();
-
-        async function fetchEvents() {
-            try {
-                const res = await fetch('/api/events');
-                const events = await res.json();
-                
-                // Process Events
-                // Events are ordered newest first (since lpush/lrange 0-N)
-                
-                eventFeed.innerHTML = '';
-                
-                events.forEach((evt, index) => {
-                    // Add Camera if new
-                    if (!cameras.has(evt.stream_id)) {
-                        cameras.add(evt.stream_id);
-                        renderCameras();
-                    }
-                    
-                    // Create Card
-                    const card = document.createElement('div');
-                    card.className = `p-4 rounded-lg cursor-pointer transition border border-l-4 ${
-                        evt.level === 'DANGER' || evt.level === 'EXTREME' 
-                        ? 'bg-red-900/20 border-red-500 hover:bg-red-900/40' 
-                        : 'bg-yellow-900/20 border-yellow-500 hover:bg-yellow-900/40'
-                    }`;
-                    
-                    const timeStr = new Date(evt.timestamp * 1000).toLocaleTimeString();
-                    
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <span class="font-bold ${evt.level === 'DANGER' ? 'text-red-400' : 'text-yellow-400'}">${evt.level}</span>
-                            <span class="text-xs text-gray-400">${timeStr}</span>
-                        </div>
-                        <div class="mt-1 font-medium text-sm text-gray-200">${evt.stream_id}</div>
-                        <div class="text-xs text-gray-400 mt-1 line-clamp-2">${evt.description}</div>
-                    `;
-                    
-                    card.onclick = () => playVideo(evt);
-                    eventFeed.appendChild(card);
-                    
-                    // Auto-play newest danger if not manually playing?
-                    // For now simple click.
-                });
-
-            } catch (e) {
-                console.error("Fetch error", e);
-            }
-        }
-
-        function renderCameras() {
-            cameraList.innerHTML = '';
-            cameras.forEach(cam => {
-                const el = document.createElement('div');
-                el.className = 'p-3 rounded bg-slate-800/50 flex items-center justify-between';
-                el.innerHTML = `
-                    <span class="text-sm font-medium">${cam}</span>
-                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 shadow shadow-green-500/50"></span>
-                `;
-                cameraList.appendChild(el);
-            });
-        }
-
-        function playVideo(evt) {
-            // Video path: /videos/accident_clips/filename.mp4
-            // Our API: /video/filename
-            const filename = evt.video_clip.split('/').pop();
-            const url = `/video/${filename}`;
-            
-            mainPlayer.src = url;
-            mainPlayer.play();
-            
-            document.getElementById('video-title').innerText = `${evt.level}: ${evt.stream_id}`;
-            document.getElementById('video-desc').innerText = `${new Date(evt.timestamp * 1000).toLocaleString()} - ${evt.description}`;
-            document.getElementById('live-badge').classList.remove('hidden');
-        }
-
-        // Poll every 3 seconds
-        fetchEvents();
-        setInterval(fetchEvents, 3000);
-    </script>
+    <script src="/static/app.js"></script>
 </body>
+
 </html>

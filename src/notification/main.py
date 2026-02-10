@@ -45,7 +45,7 @@ def send_telegram_alert(message, video_path=None):
         try:
             with open(video_path, 'rb') as video_file:
                 files = {'video': video_file}
-                data = {'chat_id': chat_id, 'caption': "🚨 Accident Footage"}
+                data = {'chat_id': chat_id, 'caption': "🚨 위험 영상"}
                 response = requests.post(url_vid, data=data, files=files, timeout=60)
                 if response.status_code == 200:
                    logger.info("Telegram video sent successfully.")
@@ -69,11 +69,11 @@ def send_notification(event):
         
         # Format Message
         message = f"""
-[🚨 {level} DETECTED]
-📍 Camera: {stream_id}
-⏰ Time: {time_str}
-⚠️ Hazard: {description}
-📝 Context:
+[🚨 {level} 감지]
+📍 카메라 번호: {stream_id}
+⏰ 시간: {time_str}
+⚠️ 감지된 위험: {description}
+📝 영상 맥락:
 """
         for log in context_logs:
             message += f"- {log}\n"

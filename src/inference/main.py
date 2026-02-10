@@ -53,8 +53,8 @@ def setup_model():
     sampling_kwargs = yaml.safe_load(open(CONFIG_DIR / "sampling_params.yaml", "rb"))
     sampling_params = vllm.SamplingParams(**sampling_kwargs)
     
-    print(f"Loading Prompt Config from {PROMPTS_DIR}/industrial_safety_short.yaml")
-    prompt_kwargs = yaml.safe_load(open(PROMPTS_DIR / "industrial_safety_short.yaml", "rb"))
+    print(f"Loading Prompt Config from {PROMPTS_DIR}/industrial_safety_reasoning.yaml")
+    prompt_kwargs = yaml.safe_load(open(PROMPTS_DIR / "industrial_safety_reasoning.yaml", "rb"))
     prompt_config = PromptConfig.model_validate(prompt_kwargs)
     
     # System Prompt construction
@@ -237,6 +237,10 @@ def main():
     
     print("Inference Main Loop Started (Consuming Batches)...")
     
+    # Redis for Output
+    output_redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+    OUTPUT_STREAM_KEY = "vlm_inference_stream"
+
     while True:
         # Get ready batch from queue
         try:
@@ -251,21 +255,55 @@ def main():
             # Process outputs
             for i, output in enumerate(outputs):
                 output_text = output.outputs[0].text
-                stream_id = original_payloads[i].get("stream_id")
+                input_payload = original_payloads[i]
+                stream_id = input_payload.get("stream_id")
+                timestamp = input_payload.get("timestamp")
+                video_path = input_payload.get("video_path")
                 
+                # [NEW] Parse Reasoning & Answer
+                # format: <think>...</think><answer>...</answer>
+                extracted, _ = extract_tagged_text(output_text)
+                
+                # Extract first occurrence of each tag
+                reasoning_list = extracted.get("think", [])
+                reasoning = reasoning_list[0].strip() if reasoning_list else ""
+                
+                answer_list = extracted.get("answer", [])
+                final_answer = answer_list[0].strip() if answer_list else ""
+                
+                # Fallback if tags are missing (legacy support or failure)
+                if not final_answer:
+                    final_answer = output_text
+
                 print("--- Analysis Result ---")
                 print(f"Stream: {stream_id}")
-                print(output_text)
+                print(f"[Reasoning]: {reasoning[:100]}...")
+                print(f"[Answer]: {final_answer}")
                 print("-----------------------")
+
+                # Publish to Redis Stream
+                try:
+                    event_data = {
+                        "stream_id": stream_id,
+                        "timestamp": timestamp,
+                        "vlm_output": final_answer,
+                        "vlm_reasoning": reasoning,
+                        "video_path": video_path,
+                        "processed_at": time.time()
+                    }
+                    output_redis.xadd(OUTPUT_STREAM_KEY, event_data, maxlen=1000)
+                except Exception as e:
+                    print(f"Error publishing to Redis Stream: {e}")
             
             # Cleanup
-            print("[Main] Cleaning up temp files...")
-            for p in temp_files:
-                try:
-                    if os.path.exists(p):
-                        os.remove(p)
-                except Exception as e:
-                    print(f"Error cleaning up {p}: {e}")
+            # [MODIFIED] Do NOT delete temp files here. Retention is handled by Capture Service.
+            # print("[Main] Cleaning up temp files... (SKIPPED - Handled by Capture Service)")
+            # for p in temp_files:
+            #     try:
+            #         if os.path.exists(p):
+            #             os.remove(p)
+            #     except Exception as e:
+            #         print(f"Error cleaning up {p}: {e}")
                     
         except KeyboardInterrupt:
             break

@@ -19,3 +19,21 @@ kind load docker-image cosmos-reason1-server:latest --name safety-hanta --nodes 
 kubectl create secret generic telegram-secret --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl apply -k k8s/
+
+echo "Waiting for dashboard to be ready..."
+kubectl wait --for=condition=ready pod -l app=dashboard --timeout=300s
+
+echo "----------------------------------------------------------------"
+echo "Dashboard is ready!"
+echo "Access it here: http://202.31.34.240:30007"
+echo "----------------------------------------------------------------"
+
+# Check and kill process on port 30007
+PID=$(lsof -ti :30007)
+if [ -n "$PID" ]; then
+  echo "Port 30007 is in use by PID $PID. Killing it..."
+  kill -9 $PID
+fi
+
+# 대쉬보드 출력을 위한 포트 포워딩
+kubectl port-forward --address 0.0.0.0 svc/dashboard-service 30007:80

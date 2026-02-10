@@ -211,6 +211,18 @@ def main():
     # Start Retention Thread
     retention_thread = threading.Thread(target=cleanup_old_files, args=(TEMP_VIDEO_DIR, 600), daemon=True)
     retention_thread.start()
+
+    # Heartbeat Thread
+    def heartbeat_loop(r_client, stream_id):
+        while True:
+            try:
+                # Set key: camera:status:{stream_id} = "online" (TTL 30s)
+                if r_client:
+                    key = f"camera:status:{stream_id}"
+                    r_client.set(key, "online", ex=30)
+            except Exception as e:
+                logger.error(f"Heartbeat error: {e}")
+            time.sleep(10)
     
     try:
         # Expected hostname format: capture-worker-{index}
@@ -223,6 +235,7 @@ def main():
         worker_id = int(parts[-1])
         
         target_url = None
+        display_stream_id = None
         
         if rtsp_base_url:
             # RTSP BASE URL이 공통일 때 다이나믹하게 할당            
@@ -241,7 +254,11 @@ def main():
             else:
                  logger.error(f"Worker ID {worker_id} is out of range for {len(RTSP_URLS)} RTSP URLs.")
 
-        if target_url:
+        if target_url and display_stream_id:
+             # Start heartbeat
+             hb_thread = threading.Thread(target=heartbeat_loop, args=(redis_client, display_stream_id), daemon=True)
+             hb_thread.start()
+
              process_stream(target_url.strip(), redis_client, display_stream_id)
             
     except ValueError:

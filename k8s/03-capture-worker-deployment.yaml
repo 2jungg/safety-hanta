@@ -42,9 +42,9 @@ spec:
             - name: REDIS_PORT
               value: "6379"
             - name: RTSP_BASE_URL
-              value: "rtsp://admin:hankook2580@172.18.0.1:8558/LiveChannel/"
+              value: "rtsp://admin:hankook2580@172.18.0.1:8558/LiveChannel/" # rtsp://[ID]:[PW]@[IP]:[PORT]/LiveChannel//
             - name: BUFFER_DURATION
-              value: "2"
+              value: "10"
           volumeMounts:
             - name: shm
               mountPath: /dev/shm
