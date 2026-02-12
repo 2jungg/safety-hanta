@@ -30,7 +30,6 @@ WORKDIR /app
 # Copy only necessary directories and files
 COPY pyproject.toml .
 COPY configs ./configs
-COPY prompts ./prompts
 COPY cosmos_reason1_utils ./cosmos_reason1_utils
 COPY qwen2_5_vl.py .
 

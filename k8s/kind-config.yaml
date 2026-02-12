@@ -51,6 +51,8 @@ nodes:
         readOnly: true
       - hostPath: /home/jungg/workspace/safety-hanta/src
         containerPath: /home/jungg/workspace/safety-hanta/src
+      - hostPath: /home/jungg/workspace/safety-hanta/prompts
+        containerPath: /home/jungg/workspace/safety-hanta/prompts
 
   # Generic worker (can host Redis, RTSP‑sim, etc.)
   - role: worker

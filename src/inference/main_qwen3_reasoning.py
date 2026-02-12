@@ -42,6 +42,7 @@ import torch
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 QUEUE_NAME = "video_stream_queue"
+EXCLUDED_STREAMS = ["cam0", "cam1", "cam2", "cam5", "cam7"]
 MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
 # SPECULATIVE_MODEL_PATH = os.getenv("SPECULATIVE_MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
 CONFIG_DIR = project_root / "configs"
@@ -179,6 +180,23 @@ def batch_preparer_worker(redis_client, processor, vision_kwargs, system_prompt,
             try:
                 payload = json.loads(data_json)
                 stream_id = payload.get("stream_id")
+                
+                # Check if stream is excluded
+                if stream_id in EXCLUDED_STREAMS:
+                    # properly clean up if needed, or just continue
+                    video_path = payload.get("video_path")
+                    if video_path and os.path.exists(video_path):
+                        try:
+                            # We can remove it immediately if we're sure we don't want it,
+                            # to save disk space and avoid it being picked up again (though it won't be picked up again as it's popped from queue)
+                            # But deletion is handled by capture service retention usually.
+                            # However, to avoid accumulation if capture service is slow, let's delete it.
+                            os.remove(video_path)
+                            print(f"[Preparer] Skipped excluded stream: {stream_id}")
+                        except Exception:
+                            pass
+                    continue
+
                 video_path = payload.get("video_path")
                 timestamp = payload.get("timestamp")
                 

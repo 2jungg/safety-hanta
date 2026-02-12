@@ -59,6 +59,8 @@ spec:
           mountPath: /videos
         - name: src-volume
           mountPath: /app/src/inference
+        - name: prompts-volume
+          mountPath: /app/prompts
       volumes:
       - name: videos-volume
         hostPath:
@@ -67,6 +69,10 @@ spec:
       - name: src-volume
         hostPath:
           path: /home/jungg/workspace/safety-hanta/src/inference
+          type: Directory
+      - name: prompts-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/prompts
           type: Directory
       - name: model-volume
         hostPath:

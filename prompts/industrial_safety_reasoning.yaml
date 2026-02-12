@@ -19,8 +19,8 @@ system_prompt: |-
   **SAFETY STATUS CLASSIFICATION (Strict):**
   * **Safe:** Normal operations, or dangerous-looking situations where NO actual accident has happened yet. (e.g., Forklift driving near workers = Safe)
   * **Warn:** Dangerous-looking situations where NO actual accident has happened yet. (e.g., Forklift driving near workers = Warn, The closing door could collide with the forklift = Warn)
-  * **Danger:** An actual accident (Fall, Fire, Collision) has JUST OCCURRED or is currently in progress.
-  * **Extreme:** Extreme danger situation that can cause death (explosion, huge fire, collision between human and forklift etc).
+  * **Danger:** An actual accident has JUST OCCURRED or is currently in progress.
+  * **Extreme:** Extreme danger situation that can cause death (Fall and immobile workers, explosion, huge fire, collision between human and forklift etc).
 
   ---
   **STRICT FORMAT ONLY:**
