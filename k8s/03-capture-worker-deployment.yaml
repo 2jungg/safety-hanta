@@ -18,7 +18,7 @@ metadata:
   name: capture-worker
 spec:
   serviceName: "capture-worker"
-  replicas: 8
+  replicas: 1
   ordinals:
     start: 1
   selector:
@@ -42,7 +42,8 @@ spec:
             - name: REDIS_PORT
               value: "6379"
             - name: RTSP_BASE_URL
-              value: "rtsp://admin:hankook2580@172.18.0.1:8558/LiveChannel/" # rtsp://[ID]:[PW]@[IP]:[PORT]/LiveChannel//
+              # value: "rtsp://admin:hankook2580@172.18.0.1:8558/LiveChannel/" # rtsp://[ID]:[PW]@[IP]:[PORT]/LiveChannel//
+              value: "rtsp://mediamtx-service:8554/" # rtsp://[ID]:[PW]@[IP]:[PORT]/
             - name: BUFFER_DURATION
               value: "10"
           volumeMounts:

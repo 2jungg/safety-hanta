@@ -5,7 +5,7 @@ metadata:
   labels:
     app: rtsp-sim
 spec:
-  replicas: 0
+  replicas: 1
   selector:
     matchLabels:
       app: rtsp-sim
@@ -67,7 +67,7 @@ spec:
                VIDEO_NUM="01";
             fi
             
-            ffmpeg -re -stream_loop -1 -i /videos/accident_video-$VIDEO_NUM.mp4 -r 4 -c:v libx264 -preset ultrafast -f rtsp -rtsp_transport tcp rtsp://localhost:8554/cam$i &
+            ffmpeg -re -stream_loop -1 -i /videos/accident_video-$VIDEO_NUM.mp4 -r 4 -c:v libx264 -preset ultrafast -f rtsp -rtsp_transport tcp rtsp://localhost:8554/$((i-1))/media.smp &
           done;
           wait
 ---

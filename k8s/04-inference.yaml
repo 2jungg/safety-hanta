@@ -39,7 +39,7 @@ spec:
         - name: REDIS_PORT
           value: "6379"
         - name: MIN_BATCH_SIZE
-          value: "3"
+          value: "1"
         - name: BATCH_TIMEOUT
           value: "1.0"
         # K-V 캐쉬 메모리 양을 조절해야 할 때 아래 값 설정해야 함 (default: 262144)

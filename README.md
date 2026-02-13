@@ -117,3 +117,47 @@ safety-hanta/
 ├── configs/            # 모델 및 시스템 설정 파일
 └── videos/             # (Volume) 수집된 비디오 및 임시 데이터 저장소
 ```
+
+---
+
+## 🎥 6. RTSP 모드 전환 가이드 (RTSP Mode Switching)
+
+개발 환경(Simulation)과 실제 현장(Real CCTV) 환경 간 전환 방법입니다.
+
+### 6.1 시뮬레이션 모드 (Simulation Mode)
+로컬에 저장된 비디오 파일을 RTSP 스트림으로 송출하여 테스트하는 모드입니다.
+
+**1. RTSP 시뮬레이터 활성화 (`k8s/02-rtsp-sim.yaml`)**
+```yaml
+spec:
+  replicas: 1  # 1 이상으로 로 설정하여 시뮬레이터 파드 실행 (비디오 파일은 videos/accident_video-##.mpy 형태로 저장)
+```
+각 rtsp sim 파드는 자신의 번호와 같은 번호를 가진 video를 송출하게 됩니다. 예를 들어, replicas를 2로 설정하면 accident_video-01, accident_video-02의 파일로 cam0, cam1 두 개의 비디오 스트림이 송출됩니다.
+
+**2. 캡처 워커 설정 변경 (`k8s/03-capture-worker-deployment.yaml`)**
+내부 서비스(`mediamtx-service`)를 바라보도록 설정합니다.
+```yaml
+env:
+  - name: RTSP_BASE_URL
+    value: "rtsp://mediamtx-service:8554/"
+```
+
+### 6.2 리얼 CCTV 모드 (Real CCTV Mode)
+현장의 실제 CCTV RTSP 주소(SSH 터널링 경유)를 사용하는 모드입니다.
+이 때 connect.sh가 실행되고 있어야 SSH 터널링을 통해 DP에 있는 비디오 스트림을 가져올 수 있습니다.
+
+**1. RTSP 시뮬레이터 비활성화 (`k8s/02-rtsp-sim.yaml`)**
+```yaml
+spec:
+  replicas: 0  # 0으로 설정하여 시뮬레이터 끄기 (리소스 절약)
+```
+
+**2. 캡처 워커 설정 변경 (`k8s/03-capture-worker-deployment.yaml`)**
+호스트의 SSH 터널(`172.18.0.1:8558`)을 바라보도록 설정합니다.
+```yaml
+env:
+  - name: RTSP_BASE_URL
+    # value: "rtsp://mediamtx-service:8554/"  # 기존 값 주석 처리
+    value: "rtsp://admin:hankook2580@172.18.0.1:8558/LiveChannel/"
+```
+> **Note**: `172.18.0.1`은 Kind 노드에서 베어메탈 호스트(SSH 터널이 열린 곳)로 접근하기 위한 Gateway IP입니다.

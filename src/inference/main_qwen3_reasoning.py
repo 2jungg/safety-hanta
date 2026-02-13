@@ -42,7 +42,7 @@ import torch
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 QUEUE_NAME = "video_stream_queue"
-EXCLUDED_STREAMS = ["cam0", "cam1", "cam2", "cam5", "cam7"]
+EXCLUDED_STREAMS = []
 MODEL_PATH = os.getenv("MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
 # SPECULATIVE_MODEL_PATH = os.getenv("SPECULATIVE_MODEL_PATH", str(project_root / "models/Qwen3-VL-2B-Instruct-NVFP4"))
 CONFIG_DIR = project_root / "configs"

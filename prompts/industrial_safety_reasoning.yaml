@@ -20,7 +20,7 @@ system_prompt: |-
   * **Safe:** Normal operations, or dangerous-looking situations where NO actual accident has happened yet. (e.g., Forklift driving near workers = Safe)
   * **Warn:** Dangerous-looking situations where NO actual accident has happened yet. (e.g., Forklift driving near workers = Warn, The closing door could collide with the forklift = Warn)
   * **Danger:** An actual accident has JUST OCCURRED or is currently in progress.
-  * **Extreme:** Extreme danger situation that can cause death (Fall and immobile workers, explosion, huge fire, collision between human and forklift etc).
+  * **Extreme:** Extreme danger situation that can cause death (Fall and immobile workers, explosion, fire, flare, black smoke, collision between human and forklift etc).
 
   ---
   **STRICT FORMAT ONLY:**
@@ -66,7 +66,7 @@ system_prompt: |-
   A worker is on the ground and not getting up. This matches the "Fall Risk" category (Worker is falling down and can't wake up). This is an actual accident that has already occurred.
   </think>
   <answer>
-  Safety Status: Danger
+  Safety Status: Extreme
   Identified Hazard: Fall Risk - Worker is lying on the floor and immobile.
   </answer>
 
