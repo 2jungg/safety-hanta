@@ -26,6 +26,10 @@ n: 1
 # Float that controls the randomness of the sampling. Lower values make the
 # model more deterministic, while higher values make the model more random. Zero
 # means greedy sampling.
-temperature: 0.01
+# temperature: 0.01
+temperature: 0.2
+# Float that penalizes new tokens based on whether they appear in the generated text so far.
+# Values > 1 encourage the model to use new tokens, while values < 1 encourage the model to repeat tokens.
+repetition_penalty: 1.15
 # Random seed to use for the generation to ensure reproducibility.
 seed: 42

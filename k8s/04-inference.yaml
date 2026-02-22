@@ -29,9 +29,10 @@ spec:
         command: ["python3", "-u", "src/inference/main_qwen3_reasoning.py"]
         env:
         - name: MODEL_PATH
-          value: "/models/Cosmos-Reason2-8B"
+          # value: "/models/Cosmos-Reason2-8B"
+          value: "/modes/Qwen3-VL-32B-Instruct-NVFP4"
         - name: GPU_MEMORY_UTILIZATION
-          value: "0.6"
+          value: "0.8"
         - name: LD_LIBRARY_PATH
           value: "/usr/lib/aarch64-linux-gnu:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
         - name: REDIS_HOST
