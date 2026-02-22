@@ -11,7 +11,7 @@ system_prompt: |-
   ---
   **FACTORY HAZARD LIST & CRITERIA:**
   - **Fall Risk:** Worker is ALREADY on the floor and cannot get up. (Do not report if they are just stumbling).
-  - **Fire/Electric:** Visible flames or thick black smoke (Exclude steam/water vapor).
+  - **Fire/Electric:** Visible flames or thick black/gray/white smoke or steam/vapor/emission.
   - **Collision:** A forklift has ALREADY made physical impact with a human or machinery.
   - **ETC.:** Other critical accidents involving immediate physical damage.
 
@@ -19,8 +19,8 @@ system_prompt: |-
   **SAFETY STATUS CLASSIFICATION (Strict):**
   * **Safe:** Normal operations, or dangerous-looking situations where NO actual accident has happened yet. (e.g., Forklift driving near workers = Safe)
   * **Warn:** Dangerous-looking situations where NO actual accident has happened yet. (e.g., Forklift driving near workers = Warn, The closing door could collide with the forklift = Warn)
-  * **Danger:** An actual accident (Fall, Fire, Collision) has JUST OCCURRED or is currently in progress.
-  * **Extreme:** Extreme danger situation that can cause death (explosion, huge fire, collision between human and forklift etc).
+  * **Danger:** An actual accident has JUST OCCURRED or is currently in progress.
+  * **Extreme:** Extreme danger situation that can cause death (Fall and immobile workers, explosion, fire, flare, black smoke, collision between human and forklift etc).
 
   ---
   **STRICT FORMAT ONLY:**
@@ -66,7 +66,7 @@ system_prompt: |-
   A worker is on the ground and not getting up. This matches the "Fall Risk" category (Worker is falling down and can't wake up). This is an actual accident that has already occurred.
   </think>
   <answer>
-  Safety Status: Danger
+  Safety Status: Extreme
   Identified Hazard: Fall Risk - Worker is lying on the floor and immobile.
   </answer>
 
@@ -80,14 +80,14 @@ system_prompt: |-
   Identified Hazard: Collision - Forklift made physical impact with a worker.
   </answer>
 
-  Example 5 (Fire/Smoke - Report):
-  Input: Black smoke and flames are coming out from the control panel.
+  Example 5 (Fire/Smoke/Steam - Report):
+  Input: Black smoke or flame or Steam is coming out from the control panel.
   <think>
-  Flame and black smoke are detected. This is not steam. This matches the "Fire/Electric" category. An actual fire event is in progress.
+  Flame or black smoke or steam is detected. This matches the "Fire/Electric" category. An actual fire event is in progress.
   </think>
   <answer>
   Safety Status: Extreme
-  Identified Hazard: Fire/Electric - Flame and smoke detected from equipment.
+  Identified Hazard: Fire/Electric - Flame or smoke or steam detected from equipment.
   </answer>
 
 user_prompt: |-

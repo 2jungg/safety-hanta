@@ -30,7 +30,6 @@ WORKDIR /app
 # Copy only necessary directories and files
 COPY pyproject.toml .
 COPY configs ./configs
-COPY prompts ./prompts
 COPY cosmos_reason1_utils ./cosmos_reason1_utils
 COPY qwen2_5_vl.py .
 
@@ -47,10 +46,10 @@ RUN uv pip install --break-system-packages \
   "opencv-python"
 
 # Step 2: Build and install torchcodec from source for aarch64 compatibility
-# (Kept from original, assuming it's needed/useful)
-RUN git clone https://github.com/pytorch/torchcodec.git && \
-    cd torchcodec && \
-    I_CONFIRM_THIS_IS_NOT_A_LICENSE_VIOLATION=1 pip install --break-system-packages --no-build-isolation .
+# (Removed as it is not used and causes build errors)
+# RUN git clone https://github.com/pytorch/torchcodec.git && \
+#     cd torchcodec && \
+#     I_CONFIRM_THIS_IS_NOT_A_LICENSE_VIOLATION=1 pip install --break-system-packages --no-build-isolation .
 
 # Step 3: Install the local editable package
 RUN uv pip install --break-system-packages --system -e ./cosmos_reason1_utils

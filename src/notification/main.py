@@ -87,9 +87,23 @@ def send_notification(event):
     except Exception as e:
         logger.error(f"Error formatting notification: {e}")
 
+def wait_for_redis(r):
+    while True:
+        try:
+            if r.ping():
+                logger.info("Connected to Redis.")
+                break
+        except redis.ConnectionError:
+            logger.info("Waiting for Redis...")
+            time.sleep(2)
+        except Exception as e:
+            logger.error(f"Redis connection error: {e}")
+            time.sleep(2)
+
 def main():
     logger.info("Notification Service Started")
     r = get_redis_client()
+    wait_for_redis(r)
     
     while True:
         try:

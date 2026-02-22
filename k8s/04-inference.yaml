@@ -29,9 +29,10 @@ spec:
         command: ["python3", "-u", "src/inference/main_qwen3_reasoning.py"]
         env:
         - name: MODEL_PATH
-          value: "/models/Cosmos-Reason2-8B"
+          # value: "/models/Cosmos-Reason2-8B"
+          value: "/modes/Qwen3-VL-32B-Instruct-NVFP4"
         - name: GPU_MEMORY_UTILIZATION
-          value: "0.6"
+          value: "0.8"
         - name: LD_LIBRARY_PATH
           value: "/usr/lib/aarch64-linux-gnu:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
         - name: REDIS_HOST
@@ -39,7 +40,7 @@ spec:
         - name: REDIS_PORT
           value: "6379"
         - name: MIN_BATCH_SIZE
-          value: "3"
+          value: "1"
         - name: BATCH_TIMEOUT
           value: "1.0"
         # K-V 캐쉬 메모리 양을 조절해야 할 때 아래 값 설정해야 함 (default: 262144)
@@ -59,6 +60,8 @@ spec:
           mountPath: /videos
         - name: src-volume
           mountPath: /app/src/inference
+        - name: prompts-volume
+          mountPath: /app/prompts
       volumes:
       - name: videos-volume
         hostPath:
@@ -67,6 +70,10 @@ spec:
       - name: src-volume
         hostPath:
           path: /home/jungg/workspace/safety-hanta/src/inference
+          type: Directory
+      - name: prompts-volume
+        hostPath:
+          path: /home/jungg/workspace/safety-hanta/prompts
           type: Directory
       - name: model-volume
         hostPath:
