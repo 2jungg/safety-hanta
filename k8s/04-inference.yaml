@@ -30,7 +30,7 @@ spec:
         env:
         - name: MODEL_PATH
           # value: "/models/Cosmos-Reason2-8B"
-          value: "/modes/Qwen3-VL-32B-Instruct-NVFP4"
+          value: "/models/Qwen3-VL-32B-Instruct-NVFP4"
         - name: GPU_MEMORY_UTILIZATION
           value: "0.8"
         - name: LD_LIBRARY_PATH
